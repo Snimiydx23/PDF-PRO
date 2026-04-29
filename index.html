@@ -2302,7 +2302,7 @@ async function buildScannerPDF(){
     var bytes2=await pdfDoc.save();var blob=new Blob([bytes2],{type:'application/pdf'});
     var ri=document.getElementById('scannerResultInfo');if(ri)ri.textContent=scannerPages.length+' pages — '+(bytes2.length/1024/1024).toFixed(2)+' MB';
     resultStore['scanner']={blobs:[blob],names:['Scanned_Document.pdf']};
-    var db=document.getElementById('scannerDownloadBtns');if(db)db.innerHTML='<button class="btn-download" onclick="dlBlob('scanner',0)">⬇ Scanned_Document.pdf</button>';
+    var db=document.getElementById('scannerDownloadBtns');if(db)db.innerHTML='<button class="btn-download" onclick="dlBlob(\'scanner\',0)">⬇ Scanned_Document.pdf</button>';
     var sr=document.getElementById('scannerResult');if(sr)sr.classList.add('visible');
     showToast('PDF ready! ✅','success');
   }catch(e){showToast('Failed: '+e.message,'error');console.error(e);}
@@ -2344,7 +2344,7 @@ async function generateClientPDFs(){
     if(!blobs.length){showToast('Koi PDF generate nahi hua','error');setGenProg('',0);if(cgp)cgp.classList.remove('visible');if(genBtn){genBtn.disabled=false;genBtn.textContent='📥 Generate PDFs';}return;}
     setGenProg('Done!',100);
     resultStore['client']={blobs:blobs,names:names};
-    var db=document.getElementById('clientDownloadBtns');if(db){var html=blobs.map(function(b,i){return '<button class="btn-download" onclick="dlBlob('client','+i+')">⬇ '+escH(names[i])+'</button>';}).join('');if(blobs.length>1)html+='<button class="btn-zip" onclick="dlZip('client')">📦 Download All as ZIP</button>';db.innerHTML=html;}
+    var db=document.getElementById('clientDownloadBtns');if(db){var html=blobs.map(function(b,i){return '<button class="btn-download" onclick="dlBlob(\'client\','+i+')">⬇ '+escH(names[i])+'</button>';}).join('');if(blobs.length>1)html+='<button class="btn-zip" onclick="dlZip(\'client\')">📦 Download All as ZIP</button>';db.innerHTML=html;}
     var ri=document.getElementById('clientResultInfo');if(ri)ri.textContent=blobs.length+' PDFs generated';
     if(cr)cr.classList.add('visible');
     showToast(blobs.length+' PDFs ready! ✅','success');
