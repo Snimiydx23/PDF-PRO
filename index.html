@@ -23,6 +23,7 @@ function _stub(fn){return function(){if(window['_real_'+fn])window['_real_'+fn].
 ].forEach(function(fn){window[fn]=_stub(fn);});
 </script>
 <meta charset="UTF-8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📄</text></svg>">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PDF Pro — Complete Suite</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
@@ -2092,7 +2093,7 @@ async function comparePDFs(){
     html+='<div style="font-size:14px;font-weight:700;margin-bottom:10px;">⚖️ Comparison Result: '+cmpFiles[1].name+' vs '+cmpFiles[2].name+'</div>';
     html+='<div style="font-size:12px;margin-bottom:10px;color:var(--muted);">PDF 1: '+texts1.length+' pages &nbsp;|&nbsp; PDF 2: '+texts2.length+' pages &nbsp;|&nbsp; <strong style="color:'+(diffPages.length?'var(--red)':'var(--green)')+'">'+diffPages.length+' page(s) different</strong></div>';
     html+='<div style="max-height:250px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;">';
-    results.forEach(function(r){html+='<div style="display:flex;gap:10px;align-items:center;padding:5px 8px;border-radius:6px;background:'+(r.same?'var(--green-light)':'var(--red-light)');';html+='">';html+='<span style="font-size:11px;font-weight:700;color:'+(r.same?'var(--green)':'var(--red)')+';">'+(r.same?'✅':'⚠️')+'</span>';html+='<span style="font-size:12px;">Page '+r.page+'</span>';if(!r.same)html+='<span style="font-size:11px;color:var(--muted);">PDF1: '+r.len1+' chars vs PDF2: '+r.len2+' chars</span>';else html+='<span style="font-size:11px;color:var(--muted);">Identical</span>';html+='</div>';});
+    results.forEach(function(r){html+='<div style="display:flex;gap:10px;align-items:center;padding:5px 8px;border-radius:6px;background:'+(r.same?'var(--green-light)':'var(--red-light)')+'">';html+='<span style="font-size:11px;font-weight:700;color:'+(r.same?'var(--green)':'var(--red)')+';">'+(r.same?'✅':'⚠️')+'</span>';html+='<span style="font-size:12px;">Page '+r.page+'</span>';if(!r.same)html+='<span style="font-size:11px;color:var(--muted);">PDF1: '+r.len1+' chars vs PDF2: '+r.len2+' chars</span>';else html+='<span style="font-size:11px;color:var(--muted);">Identical</span>';html+='</div>';});
     html+='</div></div>';
     var cr=document.getElementById('compareResult');if(cr){cr.style.display='block';cr.innerHTML=html;}
     hideProg('compare-pdf');showToast('Comparison complete! '+diffPages.length+' differences','success');
