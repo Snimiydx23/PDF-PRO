@@ -2186,7 +2186,30 @@ async function scanClientPages(){
   try{
     setScanProg('Loading PDF...',2);var buf=await file.arrayBuffer();var pdfLibDoc=await PDFLib.PDFDocument.load(buf.slice(0),{ignoreEncryption:true});var totalPages=pdfLibDoc.getPageCount();var pdfJsDoc=null;try{var lt=pdfjsLib.getDocument({data:new Uint8Array(buf.slice(0))});pdfJsDoc=await lt.promise;}catch(e){}
     clientPageData=[];var textFoundCount=0;
-    for(var i=0;i<totalPages;i++){setScanProg('Text scan: page '+(i+1)+' / '+totalPages,5+Math.round((i/total
+    for(var i=0;i<totalPages;i++){
+      setScanProg('Text scan: page '+(i+1)+' / '+totalPages,5+Math.round(i/totalPages*60));
+      var pageText='';
+      if(pdfJsDoc){pageText=await extractPdfJsText(pdfJsDoc,i);}
+      var matched=matchClientName(pageText,clients,caseIns,partial);
+      var usedOCR=false;
+      if(!matched&&useOCR&&pdfJsDoc){
+        setScanProg('OCR: page '+(i+1)+'/'+totalPages,5+Math.round(i/totalPages*60));
+        var imgData=await renderPageToDataURL(pdfJsDoc,i,1.2);
+        if(imgData){var ocrText=await runOCR(imgData);matched=matchClientName(ocrText,clients,caseIns,partial);if(matched)usedOCR=true;pageText=pageText||ocrText;}
+      }
+      if(pageText)textFoundCount++;
+      clientPageData.push({pageIdx:i,text:pageText,assignedClient:matched,usedOCR:usedOCR});
+    }
+    await terminateOCRWorker();
+    setScanProg('Done!',100);
+    renderClientTable();
+    var csr2=document.getElementById('clientScanResult');if(csr2)csr2.style.display='block';
+    showToast('Scan complete! '+clientPageData.filter(function(p){return p.assignedClient;}).length+' pages matched','success');
+  }catch(e){showToast('Failed: '+e.message,'error');console.error(e);}
+  if(scanBtn){scanBtn.disabled=false;scanBtn.textContent='🔍 Scan Pages';}
+  var csp2=document.getElementById('clientScanProgress');if(csp2)setTimeout(function(){csp2.classList.remove('visible');},1000);
+}
+
 // =====================================================================
 // SCANNER FUNCTIONS
 // =====================================================================
