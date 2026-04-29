@@ -2346,13 +2346,11 @@ async function convertWordToPDF(){
   try{
     var buf=await _wordFile.arrayBuffer();
 
-    // Step 1: mammoth se complete HTML + styles extract karo
-    showProg('word-to-pdf','Document content extract kar raha hai...',25);
-
+    showProg('word-to-pdf','Content extract kar raha hai...',25);
     var mammothResult=await mammoth.convertToHtml({arrayBuffer:buf},{
       convertImage:mammoth.images.imgElement(function(image){
-        return image.read('base64').then(function(imageData){
-          return {src:'data:'+image.contentType+';base64,'+imageData};
+        return image.read('base64').then(function(d){
+          return {src:'data:'+image.contentType+';base64,'+d};
         });
       }),
       styleMap:[
@@ -2363,188 +2361,166 @@ async function convertWordToPDF(){
         "p[style-name='Heading 5'] => h5:fresh",
         "p[style-name='Heading 6'] => h6:fresh",
         "p[style-name='Title'] => h1.doc-title:fresh",
-        "p[style-name='Subtitle'] => p.doc-subtitle:fresh",
+        "p[style-name='Subtitle'] => p.subtitle:fresh",
         "p[style-name='Quote'] => blockquote:fresh",
-        "p[style-name='Intense Quote'] => blockquote.intense:fresh",
-        "b => strong",
-        "i => em",
-        "u => u",
-        "strike => s",
-        "table => table",
-        "r[style-name='Hyperlink'] => a"
+        "b => strong","i => em","u => u","strike => s","table => table"
       ]
     });
 
     var htmlContent=mammothResult.value;
     if(!htmlContent.trim()){
-      showToast('Document mein koi content nahi mila','error');
+      showToast('Document mein content nahi mila','error');
       hideProg('word-to-pdf');
-      if(btn){btn.disabled=false;btn.textContent='\uD83D\uDCC4 Convert to PDF';}
+      if(btn){btn.disabled=false;btn.textContent='📄 Convert to PDF';}
       return;
     }
 
-    var pageSize=document.getElementById('wordPageSize').value;
+    var pageSize=document.getElementById('wordPageSize').value||'A4';
     var addPageNums=document.getElementById('wordAddPageNums').checked;
     var includeImages=document.getElementById('wordIncludeImages').checked;
-    if(!includeImages) htmlContent=htmlContent.replace(/<img[^>]*>/gi,'[Image]');
+    if(!includeImages) htmlContent=htmlContent.replace(/<img[^>]*>/gi,'');
 
-    // Page size CSS values
-    var pageSizeCSS={
-      'A4':'210mm 297mm',
-      'Letter':'8.5in 11in',
-      'A3':'297mm 420mm'
-    };
-    var pageSizePt={'A4':{w:595,h:842},'Letter':{w:612,h:792},'A3':{w:842,h:1191}};
+    var pageSizeCSS={'A4':'210mm 297mm','Letter':'8.5in 11in','A3':'297mm 420mm'};
+    var pagePt={'A4':{w:595,h:842},'Letter':{w:612,h:792},'A3':{w:842,h:1191}};
     var pSize=pageSizeCSS[pageSize]||pageSizeCSS['A4'];
-    var pPt=pageSizePt[pageSize]||pageSizePt['A4'];
+    var pPt=pagePt[pageSize]||pagePt['A4'];
 
-    showProg('word-to-pdf','Print layout bana raha hai...',40);
+    showProg('word-to-pdf','Page layout bana raha hai...',40);
 
-    // Step 2: Full print-ready HTML document
-    var fullHTML='<!DOCTYPE html><html><head><meta charset="UTF-8">'+
-    '<style>'+
-    '@page{size:'+pSize+';margin:2.5cm 2.5cm 2.5cm 2.5cm;}'+
-    (addPageNums ? '@page{@bottom-center{content:counter(page) " / " counter(pages);font-size:9pt;color:#666;}}' : '')+
-    '*{box-sizing:border-box;}'+
-    'html{background:#fff;}'+
-    'body{'+
-      'font-family:"Calibri","Segoe UI","Arial",sans-serif;'+
-      'font-size:11pt;'+
-      'line-height:1.5;'+
-      'color:#000000;'+
-      'background:#ffffff;'+
-      'margin:0;padding:0;'+
-      'word-wrap:break-word;'+
-    '}'+
-    // Headings
-    'h1{font-size:16pt;font-weight:700;color:#1F3864;margin:16pt 0 6pt;line-height:1.2;page-break-after:avoid;}'+
-    'h2{font-size:13pt;font-weight:700;color:#2E4D7B;margin:14pt 0 5pt;line-height:1.2;page-break-after:avoid;}'+
-    'h3{font-size:12pt;font-weight:700;color:#1a1a1a;margin:12pt 0 4pt;page-break-after:avoid;}'+
-    'h4,h5,h6{font-size:11pt;font-weight:700;margin:10pt 0 4pt;page-break-after:avoid;}'+
-    'h1.doc-title{font-size:22pt;color:#000;text-align:center;margin-bottom:4pt;}'+
-    'p.doc-subtitle{font-size:14pt;color:#444;text-align:center;margin-top:0;margin-bottom:16pt;}'+
-    // Paragraphs
-    'p{margin:0 0 6pt;line-height:1.5;orphans:3;widows:3;}'+
-    // Text formatting
-    'strong,b{font-weight:700;}'+
-    'em,i{font-style:italic;}'+
-    'u{text-decoration:underline;}'+
-    's,strike{text-decoration:line-through;}'+
-    // Lists
-    'ul{list-style-type:disc;margin:4pt 0 6pt 0;padding-left:20pt;}'+
-    'ol{list-style-type:decimal;margin:4pt 0 6pt 0;padding-left:20pt;}'+
-    'li{margin-bottom:3pt;line-height:1.5;}'+
-    'ul ul{list-style-type:circle;margin:2pt 0 2pt 0;}'+
-    'ul ul ul{list-style-type:square;}'+
-    // Tables
-    'table{border-collapse:collapse;width:100%;margin:8pt 0;font-size:10pt;page-break-inside:auto;}'+
-    'thead{display:table-header-group;}'+
-    'tr{page-break-inside:avoid;}'+
-    'td,th{border:1px solid #AAAAAA;padding:4pt 6pt;vertical-align:top;word-break:break-word;}'+
-    'th{background-color:#D9D9D9;font-weight:700;text-align:left;color:#000;}'+
-    'tr:nth-child(even) td{background-color:#F2F2F2;}'+
-    // Images
-    'img{max-width:100%;height:auto;display:block;margin:6pt auto;page-break-inside:avoid;}'+
-    // Blockquotes
-    'blockquote{border-left:3pt solid #999;margin:8pt 0;padding:3pt 12pt;color:#444;font-style:italic;}'+
-    'blockquote.intense{border-left:3pt solid #1F3864;background:#EEF3FB;color:#1F3864;}'+
-    // Code
-    'pre{background:#F4F4F4;border:1pt solid #DDD;padding:8pt;font-family:monospace;font-size:9pt;white-space:pre-wrap;page-break-inside:avoid;margin:6pt 0;}'+
-    'code{font-family:monospace;background:#F4F4F4;padding:1pt 3pt;font-size:9pt;border-radius:2pt;}'+
-    // Misc
-    'hr{border:none;border-top:1pt solid #CCC;margin:10pt 0;}'+
-    'a{color:#1155CC;text-decoration:underline;}'+
-    // Page breaks
-    '.page-break{page-break-before:always;}'+
-    '</style></head><body>'+
-    htmlContent+
-    '</body></html>';
+    // Build full print-ready HTML
+    var pageNumCSS=addPageNums
+      ? 'body::after{content:"";display:block;}@page{@bottom-center{content:counter(page)" of "counter(pages);font-size:8pt;color:#888;}}'
+      : '';
 
-    showProg('word-to-pdf','PDF generate ho raha hai...',60);
+    var fullHTML='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+
+      '@page{size:'+pSize+';margin:2.54cm;}'+
+      pageNumCSS+
+      '*{box-sizing:border-box;margin:0;padding:0;}'+
+      'html,body{background:#fff;color:#000;}'+
+      'body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.5;word-wrap:break-word;}'+
+      'h1{font-size:16pt;font-weight:700;color:#1F3864;margin:14pt 0 5pt;page-break-after:avoid;line-height:1.2;}'+
+      'h2{font-size:13pt;font-weight:700;color:#2E4D7B;margin:12pt 0 4pt;page-break-after:avoid;}'+
+      'h3{font-size:12pt;font-weight:700;margin:10pt 0 4pt;page-break-after:avoid;}'+
+      'h4,h5,h6{font-size:11pt;font-weight:700;margin:8pt 0 3pt;page-break-after:avoid;}'+
+      'h1.doc-title{font-size:22pt;color:#000;text-align:center;margin-bottom:4pt;}'+
+      'p.subtitle{font-size:14pt;color:#555;text-align:center;margin-bottom:14pt;}'+
+      'p{margin:0 0 6pt;line-height:1.5;orphans:3;widows:3;}'+
+      'strong,b{font-weight:700;}em,i{font-style:italic;}'+
+      'u{text-decoration:underline;}s{text-decoration:line-through;}'+
+      'ul{list-style:disc;padding-left:18pt;margin:3pt 0 5pt;}'+
+      'ol{list-style:decimal;padding-left:18pt;margin:3pt 0 5pt;}'+
+      'li{margin-bottom:2pt;line-height:1.5;}'+
+      'ul ul{list-style:circle;}ul ul ul{list-style:square;}'+
+      'table{border-collapse:collapse;width:100%;margin:7pt 0;font-size:10pt;page-break-inside:auto;}'+
+      'thead{display:table-header-group;}tr{page-break-inside:avoid;}'+
+      'td,th{border:1px solid #AAAAAA;padding:4pt 6pt;vertical-align:top;}'+
+      'th{background:#D9D9D9;font-weight:700;text-align:left;}'+
+      'tr:nth-child(even) td{background:#F5F5F5;}'+
+      'img{max-width:100%;height:auto;display:block;margin:5pt auto;page-break-inside:avoid;}'+
+      'blockquote{border-left:3pt solid #888;margin:6pt 0;padding:3pt 12pt;color:#444;font-style:italic;}'+
+      'hr{border:none;border-top:1pt solid #ccc;margin:8pt 0;}'+
+      'pre{background:#f4f4f4;border:1pt solid #ddd;padding:7pt;font-family:monospace;font-size:9pt;white-space:pre-wrap;margin:5pt 0;page-break-inside:avoid;}'+
+      'code{font-family:monospace;background:#f4f4f4;padding:1pt 3pt;font-size:9pt;}'+
+      'a{color:#1155CC;text-decoration:underline;}'+
+      '</style></head><body>'+htmlContent+'</body></html>';
 
-    // Step 3: Use print window to get EXACT formatted PDF
-    // Create a hidden iframe with the full HTML
+    showProg('word-to-pdf','PDF render ho raha hai...',55);
+
+    // --- Render in hidden iframe, capture each page as canvas, build PDF ---
     var iframe=document.createElement('iframe');
-    iframe.style.cssText='position:fixed;left:-99999px;top:0;width:1px;height:1px;border:none;';
-    document.body.appendChild(iframe);
+    // Give it real A4 pixel size so layout is exact
+    var DPI=96;
+    var MM_TO_PX=DPI/25.4;
+    var pageWpx=Math.round(210*MM_TO_PX); // 794px for A4
+    var pageHpx=Math.round(297*MM_TO_PX); // 1123px for A4
+    if(pageSize==='Letter'){pageWpx=816;pageHpx=1056;}
+    if(pageSize==='A3'){pageWpx=1123;pageHpx=1587;}
 
+    iframe.style.cssText='position:fixed;left:-9999px;top:0;width:'+pageWpx+'px;height:'+pageHpx*3+'px;border:none;';
+    document.body.appendChild(iframe);
     var iDoc=iframe.contentDocument||iframe.contentWindow.document;
     iDoc.open();iDoc.write(fullHTML);iDoc.close();
 
-    // Wait for images to load
-    showProg('word-to-pdf','Images load ho rahi hain...',70);
-    await new Promise(function(res){setTimeout(res,800);});
-    var imgs=iDoc.querySelectorAll('img');
-    if(imgs.length){
-      await Promise.all(Array.from(imgs).map(function(img){
-        return new Promise(function(res){if(img.complete)res();else{img.onload=res;img.onerror=res;}});
+    // Wait for full render + images
+    await new Promise(function(r){setTimeout(r,900);});
+    var iImgs=iDoc.querySelectorAll('img');
+    if(iImgs.length){
+      await Promise.all(Array.from(iImgs).map(function(img){
+        return new Promise(function(r){if(img.complete)r();else{img.onload=r;img.onerror=r;}});
       }));
-      await new Promise(function(res){setTimeout(res,400);});
+      await new Promise(function(r){setTimeout(r,400);});
     }
 
-    showProg('word-to-pdf','PDF download ke liye tayar...',90);
+    var totalH=iDoc.body.scrollHeight;
+    var marginPx=Math.round(2.54*MM_TO_PX); // 2.54cm margin in px
+    var contentH=pageHpx-(marginPx*2);
+    var numPages=Math.max(1,Math.ceil(totalH/contentH));
+    numPages=Math.min(numPages,80);
 
-    // Step 4: Open print dialog in new window — user saves as PDF
-    var printWin=window.open('','_blank','width=900,height=700');
-    if(!printWin){
-      // Popup blocked — fallback to blob download
-      document.body.removeChild(iframe);
-      var blob=new Blob([fullHTML],{type:'text/html'});
-      var url=URL.createObjectURL(blob);
-      showProg('word-to-pdf','Complete!',100);
-      var outName=_wordFile.name.replace(/\.docx$/i,'')+'.pdf';
-      showResult('word-to-pdf','Print preview open karein aur "Save as PDF" karein',[blob],[_wordFile.name.replace(/\.docx$/i,'')+'.html']);
-      showToast('Popup blocked! HTML download ho raha hai — browser mein open karke Print → Save as PDF karein','error');
-      if(btn){btn.disabled=false;btn.textContent='\uD83D\uDCC4 Convert to PDF';}
-      return;
+    showProg('word-to-pdf','Pages capture ho rahi hain (0/'+numPages+')...',60);
+
+    var pdfDoc=await PDFLib.PDFDocument.create();
+    var hFont=await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+
+    for(var pg=0;pg<numPages;pg++){
+      showProg('word-to-pdf','Page '+(pg+1)+' / '+numPages+' capture...',60+Math.round(pg/numPages*32));
+
+      // Scroll to this page slice
+      var scrollY=pg*contentH;
+      iframe.contentWindow.scrollTo(0,scrollY);
+      await new Promise(function(r){setTimeout(r,80);});
+
+      // html2canvas — captures exactly what browser renders
+      var canvas=await html2canvas(iDoc.body,{
+        scale:2,
+        useCORS:true,
+        allowTaint:true,
+        backgroundColor:'#ffffff',
+        width:pageWpx,
+        height:pageHpx,
+        scrollX:0,
+        scrollY:scrollY,
+        windowWidth:pageWpx,
+        windowHeight:pageHpx,
+        logging:false,
+        imageTimeout:8000
+      });
+
+      var imgData=canvas.toDataURL('image/jpeg',0.96);
+      var b64=imgData.split(',')[1];
+      var bin=atob(b64);
+      var bArr=new Uint8Array(bin.length);
+      for(var i=0;i<bin.length;i++)bArr[i]=bin.charCodeAt(i);
+      var embImg=await pdfDoc.embedJpg(bArr);
+
+      var pdfPage=pdfDoc.addPage([pPt.w,pPt.h]);
+      pdfPage.drawImage(embImg,{x:0,y:0,width:pPt.w,height:pPt.h});
+
+      if(addPageNums){
+        var pn='Page '+(pg+1)+' of '+numPages;
+        var pnW=hFont.widthOfTextAtSize(pn,8);
+        pdfPage.drawText(pn,{x:(pPt.w-pnW)/2,y:10,size:8,font:hFont,color:PDFLib.rgb(0.5,0.5,0.5)});
+      }
     }
-
-    printWin.document.open();
-    printWin.document.write(fullHTML);
-    printWin.document.close();
 
     document.body.removeChild(iframe);
+    showProg('word-to-pdf','PDF save ho raha hai...',94);
 
-    // Wait for print window to fully load
-    await new Promise(function(res){
-      if(printWin.document.readyState==='complete'){res();}
-      else{printWin.onload=res;setTimeout(res,2000);}
-    });
-    await new Promise(function(res){setTimeout(res,1200);});
+    var pdfBytes=await pdfDoc.save();
+    var blob=new Blob([pdfBytes],{type:'application/pdf'});
+    var outName=_wordFile.name.replace(/\.docx$/i,'')+'.pdf';
 
     showProg('word-to-pdf','Complete! ✅',100);
-
-    // Trigger print dialog
-    printWin.focus();
-    printWin.print();
-
-    showResult('word-to-pdf','Print dialog mein "Save as PDF" / "Microsoft Print to PDF" select karein',null,null);
-    showToast('\u2705 Print window open hua! "Save as PDF" select karein','success');
-
-    // Update result box with instructions
-    var rb=document.getElementById('word-to-pdfResult');
-    if(rb){
-      rb.classList.add('visible');
-      rb.innerHTML='<div style="padding:16px;">'+
-        '<h4 style="color:var(--green);margin-bottom:10px;">\u2705 Document Ready!</h4>'+
-        '<p style="font-size:13px;margin-bottom:12px;">Print dialog mein ye steps follow karein:</p>'+
-        '<ol style="font-size:13px;line-height:2;padding-left:20px;">'+
-        '<li><strong>Destination / Printer:</strong> \"Save as PDF\" ya \"Microsoft Print to PDF\" select karein</li>'+
-        '<li><strong>Pages:</strong> All</li>'+
-        '<li><strong>Layout:</strong> Portrait (ya apni zaroorat ke hisaab se)</li>'+
-        '<li><strong>Save</strong> button click karein</li>'+
-        '</ol>'+
-        '<button class="btn-main blue" style="margin-top:14px;width:100%;" onclick="convertWordToPDF()">\uD83D\uDD04 Dobara Convert Karein</button>'+
-        '</div>';
-    }
+    showResult('word-to-pdf',numPages+' pages — '+(pdfBytes.length/1024/1024).toFixed(2)+' MB',[blob],[outName]);
+    showToast('Word to PDF complete! ✅','success');
 
   }catch(err){
     hideProg('word-to-pdf');
     showToast('Error: '+err.message,'error');
-    console.error('Word to PDF error:',err);
-    try{var rd=document.querySelector('iframe[style*="-99999px"]');if(rd)document.body.removeChild(rd);}catch(e){}
+    console.error(err);
+    try{var rd=document.querySelector('iframe[style*="-9999px"]');if(rd)document.body.removeChild(rd);}catch(e){}
   }
-  if(btn){btn.disabled=false;btn.textContent='\uD83D\uDCC4 Convert to PDF';}
+  if(btn){btn.disabled=false;btn.textContent='📄 Convert to PDF';}
 }
 
 // =====================================================================
