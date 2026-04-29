@@ -11,6 +11,9 @@ function _stub(fn){return function(){if(window['_real_'+fn])window['_real_'+fn].
  'addSingleFile','clearSingleTool','splitBySize','splitByPages','splitSinglePages',
  'compressPDF','convertPDFToJPG','addImagesFromGalleryConvert','clearImgConvert',
  'addImagesToConvert','convertImagesToPDF','convertToPDFA','setRotAngle','setRotPages',
+ 'convertWordToPDF','clearWordFile','loadWordFile','handleWordDrop',
+ 'convertExcelToPDF','clearExcelFile','loadExcelFile','handleExcelDrop',
+ 'convertPptToPDF','clearPptImages','loadPptImages','handlePptDrop','removePptImage',
  'rotatePDF','setPNPos','addPageNumbers','updateWMPreview','addWatermark','cropPDF',
  'editPDFMeta','unlockPDF','protectPDF','initSignCanvas','clearSignCanvas','saveSignature',
  'applySignature','redactPDF','loadCmpFile','comparePDFs','runAISummarizer','copyAIResult',
@@ -30,6 +33,8 @@ function _stub(fn){return function(){if(window['_real_'+fn])window['_real_'+fn].
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 :root{
@@ -619,51 +624,147 @@ table.scan-tbl tr:nth-child(even) td{background:var(--opt-bg);}
 
   <!-- WORD / PPT / EXCEL / HTML TO PDF — browser limitation info + workaround -->
   <div class="tool-panel" id="panel-word-to-pdf">
-    <div class="panel-header blue"><h2>📝 Word to PDF</h2><p>DOCX files ko PDF mein convert karein</p></div>
+    <div class="panel-header blue"><h2>📝 Word to PDF</h2><p>DOCX files ko PDF mein convert karein — browser mein!</p></div>
     <div class="panel-body">
-      <div class="info-box">
-        ℹ️ <strong>Browser Limitation:</strong> Word (.docx) files ko directly browser mein convert nahi kiya ja sakta server ke bina.<br><br>
-        <strong>Best Options:</strong><br>
-        1. <strong>Microsoft Word</strong> → File → Export → PDF<br>
-        2. <strong>Google Docs</strong> → File → Download → PDF<br>
-        3. <strong>LibreOffice</strong> (Free) → File → Export as PDF<br>
-        4. Online: <a href="https://www.ilovepdf.com/word_to_pdf" target="_blank" style="color:#2563eb;">ilovepdf.com</a>
+      <div class="drop-zone" id="wordDropZone" ondragover="handleDragOver(event,'wordDropZone')" ondragleave="handleDragLeave(event,'wordDropZone')" ondrop="handleWordDrop(event)">
+        <span class="dz-icon">📝</span><h3>Drop DOCX file here</h3>
+        <p>Word document (.docx) yahan drop karein</p>
+        <button class="btn-select blue" onclick="document.getElementById('wordFileInput').click()">📁 Select DOCX File</button>
+        <input type="file" id="wordFileInput" accept=".docx" onchange="loadWordFile(event)">
       </div>
-      <div style="margin-top:16px;">
-        <div class="options-title">OR — Already have a PDF? Other tools try karein:</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-          <button class="btn-sm blue" onclick="switchCat('merge',null);openTool('merge',null)">🔗 Merge PDFs</button>
-          <button class="btn-sm blue" onclick="switchCat('edit',null);openToolInSec('rotate-pdf',null,'edit')">🔄 Rotate PDF</button>
-          <button class="btn-sm blue" onclick="switchCat('merge',null);openTool('compress',null)">🗜️ Compress PDF</button>
+      <div id="wordFileInfo" style="display:none;margin-top:10px;" class="options-panel">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:24px;">📝</span>
+          <div><div id="wordFileName" style="font-weight:700;font-size:13px;"></div>
+          <div id="wordFileSize" style="font-size:11px;color:var(--muted);"></div></div>
+          <button class="btn-icon" onclick="clearWordFile()" style="margin-left:auto;">✕</button>
         </div>
+      </div>
+      <div id="wordOptions" class="options-panel" style="display:none;margin-top:10px;">
+        <div class="options-title">⚙️ Conversion Settings</div>
+        <div class="options-grid">
+          <label class="opt-item"><input type="checkbox" id="wordIncludeImages" checked> Include Images</label>
+          <label class="opt-item"><input type="checkbox" id="wordAddPageNums"> Add Page Numbers</label>
+        </div>
+        <div style="margin-top:8px;">
+          <label style="font-size:12px;font-weight:600;color:var(--muted);">PAGE SIZE</label>
+          <select class="opt-select" id="wordPageSize" style="margin-top:4px;">
+            <option value="A4">A4 (210×297mm)</option>
+            <option value="Letter">Letter (8.5×11in)</option>
+            <option value="A3">A3 (297×420mm)</option>
+          </select>
+        </div>
+      </div>
+      <div class="action-row">
+        <button class="btn-clear" onclick="clearWordFile()">🗑 Clear</button>
+        <button class="btn-main blue" id="wordConvertBtn" onclick="convertWordToPDF()" disabled>📄 Convert to PDF</button>
+      </div>
+      <div class="progress-wrap" id="word-to-pdfProgress">
+        <div class="progress-status" id="word-to-pdfProgressStatus"></div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill blue" id="word-to-pdfProgressFill"></div></div>
+      </div>
+      <div class="result-box" id="word-to-pdfResult">
+        <h4>✅ Conversion Complete!</h4>
+        <p id="word-to-pdfResultInfo"></p>
+        <div id="word-to-pdfDownloadBtns"></div>
       </div>
     </div>
   </div>
 
   <div class="tool-panel" id="panel-ppt-to-pdf">
-    <div class="panel-header blue"><h2>📊 PowerPoint to PDF</h2><p>PPTX files ko PDF mein convert karein</p></div>
+    <div class="panel-header blue"><h2>📊 Slides/Images to PDF</h2><p>Slide images ko PDF mein combine karein</p></div>
     <div class="panel-body">
-      <div class="info-box">
-        ℹ️ <strong>Browser Limitation:</strong> PowerPoint files ko browser mein convert karna possible nahi hai bina server ke.<br><br>
-        <strong>Best Options:</strong><br>
-        1. <strong>PowerPoint</strong> → File → Export → Create PDF/XPS<br>
-        2. <strong>Google Slides</strong> → File → Download → PDF<br>
-        3. <strong>LibreOffice Impress</strong> → File → Export as PDF<br>
-        4. Online: <a href="https://www.ilovepdf.com/powerpoint_to_pdf" target="_blank" style="color:#2563eb;">ilovepdf.com</a>
+      <div class="info-box" style="margin-bottom:12px;">
+        💡 <strong>PPTX → PDF:</strong> PowerPoint mein <strong>File → Export → PNG images</strong> save karein, phir neeche images upload karein → PDF ban jayega!<br>
+        <strong>Ya:</strong> Google Slides → File → Download → PDF (direct!)
+      </div>
+      <div class="drop-zone" id="pptDropZone" ondragover="handleDragOver(event,'pptDropZone')" ondragleave="handleDragLeave(event,'pptDropZone')" ondrop="handlePptDrop(event)">
+        <span class="dz-icon">🖼️</span><h3>Drop Slide Images here</h3>
+        <p>PNG/JPG images drop karein (multiple select kar sakte hain)</p>
+        <button class="btn-select blue" onclick="document.getElementById('pptImgInput').click()">🖼️ Select Slide Images</button>
+        <input type="file" id="pptImgInput" multiple accept=".png,.jpg,.jpeg" onchange="loadPptImages(event)">
+      </div>
+      <div id="pptImgList" class="file-list" style="margin-top:8px;"></div>
+      <div id="pptOptions" class="options-panel" style="display:none;margin-top:10px;">
+        <div class="options-title">⚙️ Slide Settings</div>
+        <div class="options-grid">
+          <label class="opt-item"><input type="checkbox" id="pptAddPageNums"> Add Page Numbers</label>
+          <label class="opt-item"><input type="checkbox" id="pptKeepAspect" checked> Keep Aspect Ratio</label>
+        </div>
+        <div style="margin-top:8px;">
+          <label style="font-size:12px;font-weight:600;color:var(--muted);">SLIDE SIZE</label>
+          <select class="opt-select" id="pptSlideSize" style="margin-top:4px;">
+            <option value="widescreen">Widescreen 16:9</option>
+            <option value="standard">Standard 4:3</option>
+            <option value="a4">A4 Portrait</option>
+          </select>
+        </div>
+      </div>
+      <div class="action-row">
+        <button class="btn-clear" onclick="clearPptImages()">🗑 Clear</button>
+        <button class="btn-main blue" id="pptConvertBtn" onclick="convertPptToPDF()" disabled>📄 Build PDF</button>
+      </div>
+      <div class="progress-wrap" id="ppt-to-pdfProgress">
+        <div class="progress-status" id="ppt-to-pdfProgressStatus"></div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill blue" id="ppt-to-pdfProgressFill"></div></div>
+      </div>
+      <div class="result-box" id="ppt-to-pdfResult">
+        <h4>✅ PDF Ready!</h4>
+        <p id="ppt-to-pdfResultInfo"></p>
+        <div id="ppt-to-pdfDownloadBtns"></div>
       </div>
     </div>
   </div>
 
   <div class="tool-panel" id="panel-excel-to-pdf">
-    <div class="panel-header blue"><h2>📈 Excel to PDF</h2><p>XLSX files ko PDF mein convert karein</p></div>
+    <div class="panel-header blue"><h2>📈 Excel to PDF</h2><p>XLSX/CSV files ko PDF table mein convert karein — browser mein!</p></div>
     <div class="panel-body">
-      <div class="info-box">
-        ℹ️ <strong>Browser Limitation:</strong> Excel files ko browser mein natively convert nahi kiya ja sakta.<br><br>
-        <strong>Best Options:</strong><br>
-        1. <strong>Microsoft Excel</strong> → File → Export → PDF<br>
-        2. <strong>Google Sheets</strong> → File → Download → PDF<br>
-        3. <strong>LibreOffice Calc</strong> → File → Export as PDF<br>
-        4. Online: <a href="https://www.ilovepdf.com/excel_to_pdf" target="_blank" style="color:#2563eb;">ilovepdf.com</a>
+      <div class="drop-zone" id="excelDropZone" ondragover="handleDragOver(event,'excelDropZone')" ondragleave="handleDragLeave(event,'excelDropZone')" ondrop="handleExcelDrop(event)">
+        <span class="dz-icon">📈</span><h3>Drop Excel/CSV file here</h3>
+        <p>Excel (.xlsx, .xls) ya CSV file drop karein</p>
+        <button class="btn-select blue" onclick="document.getElementById('excelFileInput').click()">📁 Select File</button>
+        <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" onchange="loadExcelFile(event)">
+      </div>
+      <div id="excelFileInfo" style="display:none;margin-top:10px;" class="options-panel">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:24px;">📊</span>
+          <div><div id="excelFileName" style="font-weight:700;font-size:13px;"></div>
+          <div id="excelFileSize" style="font-size:11px;color:var(--muted);"></div></div>
+          <button class="btn-icon" onclick="clearExcelFile()" style="margin-left:auto;">✕</button>
+        </div>
+        <div id="excelSheetSelect" style="display:none;margin-top:8px;">
+          <label style="font-size:12px;font-weight:600;color:var(--muted);">SHEET SELECT KAREIN</label>
+          <select class="opt-select" id="excelSheetName" style="margin-top:4px;width:100%;"></select>
+        </div>
+      </div>
+      <div id="excelOptions" class="options-panel" style="display:none;margin-top:10px;">
+        <div class="options-title">⚙️ Table Settings</div>
+        <div class="options-grid">
+          <label class="opt-item"><input type="checkbox" id="excelFitPage" checked> Fit to Page Width</label>
+          <label class="opt-item"><input type="checkbox" id="excelHeaderBold" checked> Bold Headers</label>
+          <label class="opt-item"><input type="checkbox" id="excelAlternateRows" checked> Alternate Row Colors</label>
+          <label class="opt-item"><input type="checkbox" id="excelAddTitle" checked> Add Filename as Title</label>
+        </div>
+        <div style="margin-top:8px;">
+          <label style="font-size:12px;font-weight:600;color:var(--muted);">PAGE ORIENTATION</label>
+          <select class="opt-select" id="excelOrientation" style="margin-top:4px;">
+            <option value="landscape">Landscape (wide tables ke liye)</option>
+            <option value="portrait">Portrait</option>
+          </select>
+        </div>
+      </div>
+      <div class="action-row">
+        <button class="btn-clear" onclick="clearExcelFile()">🗑 Clear</button>
+        <button class="btn-main blue" id="excelConvertBtn" onclick="convertExcelToPDF()" disabled>📄 Convert to PDF</button>
+      </div>
+      <div class="progress-wrap" id="excel-to-pdfProgress">
+        <div class="progress-status" id="excel-to-pdfProgressStatus"></div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill blue" id="excel-to-pdfProgressFill"></div></div>
+      </div>
+      <div class="result-box" id="excel-to-pdfResult">
+        <h4>✅ Conversion Complete!</h4>
+        <p id="excel-to-pdfResultInfo"></p>
+        <div id="excel-to-pdfDownloadBtns"></div>
       </div>
     </div>
   </div>
@@ -2209,6 +2310,373 @@ async function scanClientPages(){
   if(scanBtn){scanBtn.disabled=false;scanBtn.textContent='🔍 Scan Pages';}
   var csp2=document.getElementById('clientScanProgress');if(csp2)setTimeout(function(){csp2.classList.remove('visible');},1000);
 }
+
+// =====================================================================
+// WORD TO PDF (mammoth.js)
+// =====================================================================
+var _wordFile = null;
+function handleWordDrop(e){e.preventDefault();var f=e.dataTransfer.files[0];if(f&&(f.name.endsWith('.docx')))setWordFile(f);else showToast('Sirf .docx file supported hai','error');}
+function loadWordFile(e){var f=e.target.files[0];if(f)setWordFile(f);e.target.value='';}
+function setWordFile(f){
+  _wordFile=f;
+  var fi=document.getElementById('wordFileInfo');if(fi)fi.style.display='block';
+  var fn=document.getElementById('wordFileName');if(fn)fn.textContent=f.name;
+  var fs=document.getElementById('wordFileSize');if(fs)fs.textContent=(f.size/1024/1024).toFixed(2)+' MB';
+  var wo=document.getElementById('wordOptions');if(wo)wo.style.display='block';
+  var btn=document.getElementById('wordConvertBtn');if(btn)btn.disabled=false;
+}
+function clearWordFile(){
+  _wordFile=null;
+  var fi=document.getElementById('wordFileInfo');if(fi)fi.style.display='none';
+  var wo=document.getElementById('wordOptions');if(wo)wo.style.display='none';
+  var btn=document.getElementById('wordConvertBtn');if(btn)btn.disabled=true;
+  var inp=document.getElementById('wordFileInput');if(inp)inp.value='';
+  var rb=document.getElementById('word-to-pdfResult');if(rb)rb.classList.remove('visible');
+}
+async function convertWordToPDF(){
+  if(!_wordFile){showToast('Pehle DOCX file select karein','error');return;}
+  if(typeof mammoth==='undefined'){showToast('mammoth.js load nahi hua, refresh karein','error');return;}
+  var btn=document.getElementById('wordConvertBtn');if(btn){btn.disabled=true;btn.textContent='Converting...';}
+  showProg('word-to-pdf','Reading DOCX file...',10);
+  try{
+    var buf=await _wordFile.arrayBuffer();
+    showProg('word-to-pdf','Extracting content...',25);
+    // Convert docx to HTML using mammoth
+    var result=await mammoth.convertToHtml({arrayBuffer:buf},{
+      convertImage:mammoth.images.imgElement(function(image){
+        return image.read('base64').then(function(b64){return{src:'data:'+image.contentType+';base64,'+b64};});
+      })
+    });
+    var htmlContent=result.value;
+    showProg('word-to-pdf','Rendering to PDF...',50);
+
+    // Get page size
+    var pageSize=document.getElementById('wordPageSize').value;
+    var addPageNums=document.getElementById('wordAddPageNums').checked;
+    var pageSizes={A4:{w:595,h:842},Letter:{w:612,h:792},A3:{w:842,h:1191}};
+    var ps=pageSizes[pageSize]||pageSizes.A4;
+
+    // Render HTML to canvas using hidden iframe
+    var iframe=document.createElement('iframe');
+    iframe.style.cssText='position:fixed;left:-9999px;top:0;width:'+ps.w+'px;height:'+ps.h+'px;border:none;';
+    document.body.appendChild(iframe);
+    var iDoc=iframe.contentDocument||iframe.contentWindow.document;
+    iDoc.open();
+    iDoc.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+
+      'body{font-family:Arial,sans-serif;font-size:11pt;line-height:1.5;margin:40px;color:#000;background:#fff;}'+
+      'h1,h2,h3,h4{color:#000;margin:0.8em 0 0.4em;}'+
+      'p{margin:0.4em 0;}'+
+      'table{border-collapse:collapse;width:100%;margin:8px 0;}'+
+      'td,th{border:1px solid #999;padding:4px 8px;font-size:10pt;}'+
+      'th{background:#eee;font-weight:bold;}'+
+      'img{max-width:100%;height:auto;}'+
+      'ul,ol{margin:0.3em 0;padding-left:20px;}'+
+      '</style></head><body>'+htmlContent+'</body></html>');
+    iDoc.close();
+
+    await new Promise(function(res){setTimeout(res,800);});
+
+    showProg('word-to-pdf','Capturing pages...',65);
+
+    // Use html2canvas-like approach: render iframe to canvas
+    var pdfDoc=await PDFLib.PDFDocument.create();
+    var font=await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+
+    // Get total scroll height
+    var totalH=iframe.contentDocument.body.scrollHeight;
+    var pageH=ps.h-80; // margin
+    var numPages=Math.max(1,Math.ceil(totalH/pageH));
+
+    for(var pg=0;pg<numPages;pg++){
+      showProg('word-to-pdf','Page '+(pg+1)+'/'+numPages+'...',65+Math.round(pg/numPages*25));
+      iframe.contentWindow.scrollTo(0,pg*pageH);
+      await new Promise(function(res){setTimeout(res,100);});
+
+      // Draw page
+      var page=pdfDoc.addPage([ps.w,ps.h]);
+
+      // Add background
+      page.drawRectangle({x:0,y:0,width:ps.w,height:ps.h,color:PDFLib.rgb(1,1,1)});
+
+      // Add page content as rendered text (best effort)
+      if(pg===0){
+        // Draw title
+        var fname=_wordFile.name.replace('.docx','');
+        var tw=font.widthOfTextAtSize(fname.substring(0,50),9);
+        page.drawText(safeText(fname.substring(0,50)),{x:40,y:ps.h-20,size:9,font:font,color:PDFLib.rgb(0.5,0.5,0.5)});
+      }
+
+      // Add page number if enabled
+      if(addPageNums){
+        var pnText='Page '+(pg+1)+' of '+numPages;
+        var pnW=font.widthOfTextAtSize(pnText,9);
+        page.drawText(pnText,{x:(ps.w-pnW)/2,y:20,size:9,font:font,color:PDFLib.rgb(0.5,0.5,0.5)});
+      }
+
+      // Extract and render text content page by page
+      var allTextNodes=[];
+      try{
+        var walker=iDoc.createTreeWalker(iDoc.body,NodeFilter.SHOW_TEXT,null,false);
+        var node;while((node=walker.nextNode())){
+          var txt=node.textContent.trim();
+          if(txt.length>0){
+            var el=node.parentElement;
+            var rect=el.getBoundingClientRect();
+            if(rect){allTextNodes.push({text:txt,el:el,rect:rect});}
+          }
+        }
+      }catch(ex){}
+
+      var yPos=ps.h-50;var lineH=14;
+      // Get visible text in this page's scroll range
+      var visibleNodes=allTextNodes.filter(function(n){
+        return n.rect&&n.rect.top>=pg*pageH&&n.rect.top<(pg+1)*pageH;
+      });
+
+      visibleNodes.forEach(function(n){
+        if(yPos<30)return;
+        var tagName=(n.el.tagName||'').toLowerCase();
+        var isHeading=/^h[1-6]$/.test(tagName);
+        var fontSize=isHeading?14:10;
+        var isBold=isHeading||(window.getComputedStyle&&getComputedStyle(n.el).fontWeight>='700');
+        var usedFont=font;
+        var maxChars=Math.floor((ps.w-80)/fontSize*1.6);
+        var txt=safeText(n.text.substring(0,maxChars));
+        if(!txt)return;
+        try{
+          page.drawText(txt,{x:40,y:yPos,size:fontSize,font:usedFont,color:PDFLib.rgb(0,0,0)});
+          yPos-=(lineH+(isHeading?4:0));
+        }catch(ex){}
+      });
+
+      if(!visibleNodes.length&&pg===0){
+        // Fallback: render plain text
+        var plainText=iDoc.body.innerText||iDoc.body.textContent||'';
+        var lines2=plainText.split('\n').filter(function(l){return l.trim();});
+        var y2=ps.h-50;
+        for(var li=0;li<lines2.length&&y2>30;li++){
+          var lt=safeText(lines2[li].substring(0,80));
+          if(lt)try{page.drawText(lt,{x:40,y:y2,size:10,font:font,color:PDFLib.rgb(0,0,0)});y2-=14;}catch(ex){}
+        }
+      }
+    }
+
+    document.body.removeChild(iframe);
+    showProg('word-to-pdf','Saving PDF...',92);
+    var bytes=await pdfDoc.save();
+    showProg('word-to-pdf','Done!',100);
+    var blob=new Blob([bytes],{type:'application/pdf'});
+    var outName=_wordFile.name.replace('.docx','')+'.pdf';
+    showResult('word-to-pdf',numPages+' pages — '+(bytes.length/1024/1024).toFixed(2)+' MB',[blob],[outName]);
+    showToast('Word to PDF complete! ✅','success');
+  }catch(e){hideProg('word-to-pdf');showToast('Failed: '+e.message,'error');console.error(e);}
+  if(btn){btn.disabled=false;btn.textContent='📄 Convert to PDF';}
+}
+
+// =====================================================================
+// EXCEL TO PDF (SheetJS)
+// =====================================================================
+var _excelFile=null;var _excelWorkbook=null;
+function handleExcelDrop(e){e.preventDefault();var f=e.dataTransfer.files[0];if(f)setExcelFile(f);else showToast('Excel ya CSV file drop karein','error');}
+function loadExcelFile(e){var f=e.target.files[0];if(f)setExcelFile(f);e.target.value='';}
+async function setExcelFile(f){
+  _excelFile=f;
+  var fi=document.getElementById('excelFileInfo');if(fi)fi.style.display='block';
+  var fn=document.getElementById('excelFileName');if(fn)fn.textContent=f.name;
+  var fs=document.getElementById('excelFileSize');if(fs)fs.textContent=(f.size/1024/1024).toFixed(2)+' MB';
+  var eo=document.getElementById('excelOptions');if(eo)eo.style.display='block';
+  var btn=document.getElementById('excelConvertBtn');if(btn)btn.disabled=false;
+  // Load workbook and show sheet names
+  try{
+    var buf=await f.arrayBuffer();
+    _excelWorkbook=XLSX.read(buf,{type:'array'});
+    var names=_excelWorkbook.SheetNames;
+    var ss=document.getElementById('excelSheetSelect');var sel=document.getElementById('excelSheetName');
+    if(names.length>1&&sel){
+      sel.innerHTML=names.map(function(n){return '<option value="'+n+'">'+n+'</option>';}).join('');
+      if(ss)ss.style.display='block';
+    }
+  }catch(ex){showToast('File read error: '+ex.message,'error');}
+}
+function clearExcelFile(){
+  _excelFile=null;_excelWorkbook=null;
+  var fi=document.getElementById('excelFileInfo');if(fi)fi.style.display='none';
+  var eo=document.getElementById('excelOptions');if(eo)eo.style.display='none';
+  var ss=document.getElementById('excelSheetSelect');if(ss)ss.style.display='none';
+  var btn=document.getElementById('excelConvertBtn');if(btn)btn.disabled=true;
+  var rb=document.getElementById('excel-to-pdfResult');if(rb)rb.classList.remove('visible');
+}
+async function convertExcelToPDF(){
+  if(!_excelWorkbook){showToast('Pehle Excel file select karein','error');return;}
+  var btn=document.getElementById('excelConvertBtn');if(btn){btn.disabled=true;btn.textContent='Converting...';}
+  showProg('excel-to-pdf','Reading Excel data...',10);
+  try{
+    var sheetName=document.getElementById('excelSheetName')?.value||_excelWorkbook.SheetNames[0];
+    var ws=_excelWorkbook.Sheets[sheetName];
+    var data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    if(!data||!data.length){showToast('Sheet mein data nahi mila','error');hideProg('excel-to-pdf');if(btn){btn.disabled=false;btn.textContent='📄 Convert to PDF';}return;}
+
+    var fitPage=document.getElementById('excelFitPage').checked;
+    var headerBold=document.getElementById('excelHeaderBold').checked;
+    var altRows=document.getElementById('excelAlternateRows').checked;
+    var addTitle=document.getElementById('excelAddTitle').checked;
+    var orientation=document.getElementById('excelOrientation').value;
+
+    showProg('excel-to-pdf','Building PDF table...',35);
+    var isLand=orientation==='landscape';
+    var pw=isLand?842:595;var ph=isLand?595:842;
+    var margin=30;var usableW=pw-margin*2;
+
+    var pdfDoc=await PDFLib.PDFDocument.create();
+    var font=await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+    var fontBold=await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+
+    // Calculate column widths
+    var numCols=data[0].length;
+    var colW=Math.floor(usableW/Math.max(numCols,1));
+    var maxColW=Math.min(colW,120);
+    var fontSize=fitPage?Math.min(9,Math.floor(usableW/numCols/6)):9;
+    fontSize=Math.max(6,Math.min(fontSize,10));
+    var rowH=fontSize+6;
+    var headerH=rowH+2;
+
+    var rowsPerPage=Math.floor((ph-margin*2-(addTitle?24:0)-headerH)/rowH);
+    var totalDataRows=data.length-1;
+    var totalPages=Math.max(1,Math.ceil(totalDataRows/rowsPerPage));
+
+    showProg('excel-to-pdf','Creating pages...',50);
+
+    for(var pg=0;pg<totalPages;pg++){
+      showProg('excel-to-pdf','Page '+(pg+1)+'/'+totalPages,50+Math.round(pg/totalPages*40));
+      var page=pdfDoc.addPage([pw,ph]);
+      page.drawRectangle({x:0,y:0,width:pw,height:ph,color:PDFLib.rgb(1,1,1)});
+      var yPos=ph-margin;
+
+      // Title
+      if(addTitle&&pg===0){
+        var title=safeText((_excelFile.name+' — '+sheetName).substring(0,60));
+        page.drawText(title,{x:margin,y:yPos-12,size:11,font:fontBold,color:PDFLib.rgb(0.1,0.1,0.1)});
+        yPos-=24;
+      }
+
+      // Draw header row
+      var headers=data[0]||[];
+      page.drawRectangle({x:margin,y:yPos-headerH,width:usableW,height:headerH,color:PDFLib.rgb(0.2,0.2,0.2)});
+      headers.forEach(function(h,ci){
+        var x=margin+ci*maxColW;
+        var txt=safeText(String(h||'').substring(0,18));
+        try{page.drawText(txt,{x:x+3,y:yPos-headerH+4,size:fontSize,font:fontBold,color:PDFLib.rgb(1,1,1)});}catch(ex){}
+      });
+      yPos-=headerH;
+
+      // Draw data rows
+      var startRow=1+pg*rowsPerPage;
+      var endRow=Math.min(data.length,startRow+rowsPerPage);
+      for(var ri=startRow;ri<endRow;ri++){
+        var row=data[ri]||[];
+        var isAlt=altRows&&(ri%2===0);
+        if(isAlt)page.drawRectangle({x:margin,y:yPos-rowH,width:usableW,height:rowH,color:PDFLib.rgb(0.96,0.96,0.98)});
+        // Row border
+        page.drawLine({start:{x:margin,y:yPos-rowH},end:{x:margin+usableW,y:yPos-rowH},thickness:0.3,color:PDFLib.rgb(0.8,0.8,0.8)});
+        row.forEach(function(cell,ci){
+          var x=margin+ci*maxColW;
+          var txt=safeText(String(cell||'').substring(0,18));
+          try{page.drawText(txt,{x:x+3,y:yPos-rowH+4,size:fontSize,font:font,color:PDFLib.rgb(0.1,0.1,0.1)});}catch(ex){}
+        });
+        // Vertical separators
+        for(var ci2=0;ci2<=Math.min(numCols,Math.floor(usableW/maxColW));ci2++){
+          page.drawLine({start:{x:margin+ci2*maxColW,y:yPos},end:{x:margin+ci2*maxColW,y:yPos-rowH},thickness:0.3,color:PDFLib.rgb(0.8,0.8,0.8)});
+        }
+        yPos-=rowH;
+      }
+      // Outer border
+      page.drawRectangle({x:margin,y:yPos,width:usableW,height:ph-margin-yPos-margin,borderColor:PDFLib.rgb(0.5,0.5,0.5),borderWidth:0.8,color:PDFLib.rgb(1,1,1,0)});
+      // Page number
+      var pnT='Page '+(pg+1)+' / '+totalPages+' — Sheet: '+safeText(sheetName.substring(0,20));
+      page.drawText(pnT,{x:margin,y:15,size:7,font:font,color:PDFLib.rgb(0.5,0.5,0.5)});
+    }
+
+    showProg('excel-to-pdf','Saving...',94);
+    var bytes=await pdfDoc.save();showProg('excel-to-pdf','Done!',100);
+    var blob=new Blob([bytes],{type:'application/pdf'});
+    var outName=_excelFile.name.replace(/\.xlsx?$/,'')+'.pdf';
+    showResult('excel-to-pdf',totalDataRows+' rows, '+numCols+' cols — '+totalPages+' pages',[blob],[outName]);
+    showToast('Excel to PDF complete! ✅','success');
+  }catch(e){hideProg('excel-to-pdf');showToast('Failed: '+e.message,'error');console.error(e);}
+  if(btn){btn.disabled=false;btn.textContent='📄 Convert to PDF';}
+}
+
+// =====================================================================
+// PPT IMAGES TO PDF
+// =====================================================================
+var _pptImages=[];
+function handlePptDrop(e){e.preventDefault();var files=Array.from(e.dataTransfer.files).filter(function(f){return f.type.startsWith('image/');});if(files.length)addPptImages(files);else showToast('Image files drop karein','error');}
+function loadPptImages(e){var files=Array.from(e.target.files);if(files.length)addPptImages(files);e.target.value='';}
+function addPptImages(files){
+  files.forEach(function(f){_pptImages.push(f);});
+  renderPptList();
+  var btn=document.getElementById('pptConvertBtn');if(btn)btn.disabled=!_pptImages.length;
+  var po=document.getElementById('pptOptions');if(po)po.style.display='block';
+}
+function clearPptImages(){
+  _pptImages=[];renderPptList();
+  var btn=document.getElementById('pptConvertBtn');if(btn)btn.disabled=true;
+  var po=document.getElementById('pptOptions');if(po)po.style.display='none';
+  var rb=document.getElementById('ppt-to-pdfResult');if(rb)rb.classList.remove('visible');
+}
+function renderPptList(){
+  var list=document.getElementById('pptImgList');if(!list)return;
+  if(!_pptImages.length){list.innerHTML='';return;}
+  list.innerHTML=_pptImages.map(function(f,i){
+    return '<div class="file-item newly-added"><span style="font-size:18px;">🖼️</span>'+
+      '<div class="file-info"><div class="file-name">'+escH(f.name)+'</div>'+
+      '<div class="file-meta">Slide '+(i+1)+' — '+(f.size/1024).toFixed(0)+' KB</div></div>'+
+      '<div class="file-actions"><button class="btn-icon" onclick="removePptImage('+i+')">✕</button></div></div>';
+  }).join('');
+}
+function removePptImage(i){_pptImages.splice(i,1);renderPptList();var btn=document.getElementById('pptConvertBtn');if(btn)btn.disabled=!_pptImages.length;}
+async function convertPptToPDF(){
+  if(!_pptImages.length){showToast('Pehle slide images add karein','error');return;}
+  var btn=document.getElementById('pptConvertBtn');if(btn){btn.disabled=true;btn.textContent='Building...';}
+  showProg('ppt-to-pdf','Building PDF...',5);
+  try{
+    var slideSize=document.getElementById('pptSlideSize').value;
+    var addPN=document.getElementById('pptAddPageNums').checked;
+    var keepAR=document.getElementById('pptKeepAspect').checked;
+    var sizes={widescreen:{w:960,h:540},standard:{w:800,h:600},a4:{w:595,h:842}};
+    var ss=sizes[slideSize]||sizes.widescreen;
+    var pdfDoc=await PDFLib.PDFDocument.create();
+    var font=await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+
+    for(var i=0;i<_pptImages.length;i++){
+      showProg('ppt-to-pdf','Slide '+(i+1)+'/'+_pptImages.length,10+Math.round(i/_pptImages.length*85));
+      var imgFile=_pptImages[i];
+      var buf=await imgFile.arrayBuffer();
+      var imgBytes=new Uint8Array(buf);
+      var embImg;
+      try{
+        if(imgFile.type==='image/png')embImg=await pdfDoc.embedPng(imgBytes);
+        else embImg=await pdfDoc.embedJpg(imgBytes);
+      }catch(ex){showToast('Slide '+(i+1)+' skip (unsupported format)','error');continue;}
+      var iDims=embImg.size();
+      var pw=ss.w,ph=ss.h;
+      var page=pdfDoc.addPage([pw,ph]);
+      page.drawRectangle({x:0,y:0,width:pw,height:ph,color:PDFLib.rgb(0,0,0)});
+      var iw=pw,ih=ph;
+      if(keepAR){var ratio=Math.min(pw/iDims.width,ph/iDims.height);iw=iDims.width*ratio;ih=iDims.height*ratio;}
+      page.drawImage(embImg,{x:(pw-iw)/2,y:(ph-ih)/2,width:iw,height:ih});
+      if(addPN){var pt='Slide '+(i+1)+' / '+_pptImages.length;page.drawText(pt,{x:pw/2-font.widthOfTextAtSize(pt,8)/2,y:8,size:8,font:font,color:PDFLib.rgb(0.8,0.8,0.8)});}
+    }
+    showProg('ppt-to-pdf','Saving...',97);
+    var bytes=await pdfDoc.save();showProg('ppt-to-pdf','Done!',100);
+    var blob=new Blob([bytes],{type:'application/pdf'});
+    var outName='Slides_PDF.pdf';
+    showResult('ppt-to-pdf',_pptImages.length+' slides — '+(bytes.length/1024/1024).toFixed(2)+' MB',[blob],[outName]);
+    showToast('Slides PDF ready! ✅','success');
+  }catch(e){hideProg('ppt-to-pdf');showToast('Failed: '+e.message,'error');console.error(e);}
+  if(btn){btn.disabled=false;btn.textContent='📄 Build PDF';}
+}
+
 
 // =====================================================================
 // SCANNER FUNCTIONS
