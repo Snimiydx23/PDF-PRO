@@ -2373,285 +2373,48 @@ function _hexRgb(hex){
 
 // Main converter
 async function convertWordToPDF() {
-  if (!wordFileData) return;
+  if (!_wordFile) return;
+  var btn = document.getElementById('wordConvertBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Converting...'; }
 
-  // Progress show karo
-  setProgress('word-to-pdf', 30, 'Uploading file...');
+  showProg('word-to-pdf', 30, 'Uploading file...');
 
-  const formData = new FormData();
-  formData.append('file', wordFileData);
+  var formData = new FormData();
+  formData.append('file', _wordFile);
 
   try {
-    setProgress('word-to-pdf', 60, 'LibreOffice se convert ho raha hai...');
+    showProg('word-to-pdf', 60, 'LibreOffice se convert ho raha hai...');
 
-    const response = await fetch('https://pdf-pro-server.onrender.com/convert/word-to-pdf', {
+    var response = await fetch('https://pdf-pro-server.onrender.com/convert/word-to-pdf', {
       method: 'POST',
       body: formData
     });
 
     if (!response.ok) {
-      throw new Error('Server error');
+      var errText = await response.text();
+      throw new Error('Server error: ' + errText);
     }
 
-    setProgress('word-to-pdf', 90, 'PDF ready ho raha hai...');
+    showProg('word-to-pdf', 90, 'PDF ready ho raha hai...');
 
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
+    var blob = await response.blob();
+    var outName = _wordFile.name.replace(/\.docx?$/i, '') + '.pdf';
 
-    setProgress('word-to-pdf', 100, 'Done!');
-
-    // Download
-    dlBlob(blob, wordFileData.name.replace(/\.docx?$/i, '') + '.pdf');
-    showResult('word-to-pdf', `${wordFileData.name} successfully converted!`);
-    showToast('PDF ready!', 'success');
+    showProg('word-to-pdf', 100, 'Done!');
+    showResult('word-to-pdf',
+      _wordFile.name + ' successfully converted!',
+      [blob],
+      [outName]
+    );
+    showToast('PDF ready! ✅', 'success');
 
   } catch (err) {
-    showToast('Conversion failed! Server check karo.', 'error');
+    hideProg('word-to-pdf');
+    showToast('Conversion failed: ' + err.message, 'error');
     console.error(err);
   }
-}
 
-    // ---- BLOCK RENDERERS ----
-
-    // Draw a single text run (handles line wrap, page breaks)
-    function drawTextBlock(text, opts){
-      var font=opts.font||fReg;
-      var fs=opts.fontSize||10;
-      var color=opts.color||PDFLib.rgb(0,0,0);
-      var indent=opts.indent||0;
-      var spaceAfter=opts.spaceAfter!==undefined?opts.spaceAfter:4;
-      var spaceBefore=opts.spaceBefore||0;
-      var maxW=CW-indent;
-
-      var safe=_wSafe(text).trim();
-      if(!safe){curY-=spaceAfter;return;}
-
-      if(spaceBefore){ensureSpace(spaceBefore+fs+2);curY-=spaceBefore;}
-
-      var lines=_wrapText(safe,font,fs,maxW);
-      var lineH=fs*1.4;
-
-      for(var li=0;li<lines.length;li++){
-        ensureSpace(lineH+2);
-        try{
-          page.drawText(lines[li],{x:ML+indent,y:curY-fs,size:fs,font:font,color:color});
-        }catch(ex){}
-        curY-=lineH;
-      }
-      curY-=spaceAfter;
-    }
-
-    // Draw a horizontal rule
-    function drawRule(){
-      ensureSpace(12);
-      page.drawLine({start:{x:ML,y:curY-4},end:{x:ps.w-MR,y:curY-4},thickness:0.7,color:PDFLib.rgb(0.7,0.7,0.7)});
-      curY-=12;
-    }
-
-    // Draw a TABLE from a <table> element
-    function drawTable(tableEl){
-      var rows=Array.from(tableEl.querySelectorAll('tr'));
-      if(!rows.length)return;
-
-      // Collect all cell data first to measure heights
-      var allRowData=rows.map(function(tr){
-        var cells=Array.from(tr.querySelectorAll('th,td'));
-        return cells.map(function(cell){
-          var isTh=cell.tagName.toLowerCase()==='th';
-          var hasBold=cell.querySelector('strong,b')||isTh;
-          var cellFont=hasBold?fBold:fReg;
-          var cellFs=isTh?9:8.5;
-          var raw=_wSafe((cell.textContent||'').replace(/\s+/g,' ').trim());
-          return{text:raw,font:cellFont,fs:cellFs,isTh:isTh,hasBold:hasBold};
-        });
-      });
-
-      var numCols=Math.max.apply(null,allRowData.map(function(r){return r.length;}));
-      if(numCols<1)return;
-
-      var colW=Math.floor(CW/numCols);
-      var cellPadX=4,cellPadY=3;
-      var borderClr=PDFLib.rgb(0.55,0.55,0.55);
-      var headerBg=PDFLib.rgb(0.88,0.88,0.88);
-      var altBg=PDFLib.rgb(0.97,0.97,0.97);
-
-      ensureSpace(16); curY-=6; // space before table
-
-      for(var ri=0;ri<allRowData.length;ri++){
-        var rowCells=allRowData[ri];
-
-        // Calculate row height based on wrapped text
-        var rowH=0;
-        for(var ci=0;ci<rowCells.length;ci++){
-          var cell=rowCells[ci];
-          var avail=colW-cellPadX*2;
-          if(avail<10)avail=10;
-          var lines=_wrapText(cell.text,cell.font,cell.fs,avail);
-          var cellH=lines.length*cell.fs*1.35+cellPadY*2;
-          if(cellH>rowH)rowH=cellH;
-        }
-        if(rowH<cell.fs*1.35+cellPadY*2)rowH=cell.fs*1.35+cellPadY*2;
-        rowH=Math.ceil(rowH)+2;
-
-        ensureSpace(rowH+2);
-
-        // Row background
-        var isHeader=rowCells.some(function(c){return c.isTh;});
-        if(isHeader){
-          page.drawRectangle({x:ML,y:curY-rowH,width:CW,height:rowH,color:headerBg});
-        }else if(ri%2===0){
-          page.drawRectangle({x:ML,y:curY-rowH,width:CW,height:rowH,color:altBg});
-        }
-
-        // Outer row border
-        page.drawRectangle({x:ML,y:curY-rowH,width:CW,height:rowH,
-          borderColor:borderClr,borderWidth:0.5,color:PDFLib.rgb(1,1,1,0)});
-
-        // Draw each cell
-        for(var ci=0;ci<numCols;ci++){
-          var cell=rowCells[ci]||{text:'',font:fReg,fs:8.5,isTh:false};
-          var cx=ML+ci*colW;
-          var avail=colW-cellPadX*2;
-          if(avail<10)avail=10;
-          var lines=_wrapText(cell.text,cell.font,cell.fs,avail);
-          var textColor=PDFLib.rgb(0,0,0);
-
-          // Vertical center text in cell
-          var totalTextH=lines.length*cell.fs*1.35;
-          var startY=curY-(rowH-totalTextH)/2-cell.fs;
-
-          for(var ln=0;ln<lines.length;ln++){
-            var ty=startY-ln*cell.fs*1.35;
-            if(ty<MB)break;
-            try{
-              page.drawText(lines[ln],{x:cx+cellPadX,y:ty,size:cell.fs,font:cell.font,color:textColor});
-            }catch(ex){}
-          }
-
-          // Vertical divider between columns
-          if(ci>0){
-            page.drawLine({
-              start:{x:cx,y:curY},end:{x:cx,y:curY-rowH},
-              thickness:0.4,color:borderClr
-            });
-          }
-        }
-
-        curY-=rowH;
-      }
-      curY-=8; // space after table
-    }
-
-    // ---- TRAVERSE DOM NODES ----
-    showProg('word-to-pdf','Rendering content...',45);
-
-    function traverseNode(node){
-      var tag=(node.tagName||'').toLowerCase();
-
-      // Headings
-      if(/^h[1-6]$/.test(tag)){
-        var level=parseInt(tag[1]);
-        var fsMap={1:20,2:16,3:14,4:12,5:11,6:10};
-        var fs=fsMap[level]||12;
-        drawTextBlock(node.textContent,{font:fBold,fontSize:fs,spaceBefore:level<=2?14:10,spaceAfter:6});
-        if(level<=2)drawRule();
-        return;
-      }
-
-      // Table
-      if(tag==='table'){drawTable(node);return;}
-
-      // Paragraph
-      if(tag==='p'){
-        var pText=(node.textContent||'').trim();
-        if(!pText){curY-=6;return;}
-        // Check for bold/italic children
-        var hasBold=node.querySelector('strong,b');
-        var hasItal=node.querySelector('em,i');
-        var useFont=hasBold&&hasItal?fBoldItal:hasBold?fBold:hasItal?fItal:fReg;
-        drawTextBlock(pText,{font:useFont,fontSize:10,spaceAfter:5});
-        return;
-      }
-
-      // Lists
-      if(tag==='ul'||tag==='ol'){
-        var items=node.querySelectorAll('li');
-        var ordered=tag==='ol';
-        Array.from(items).forEach(function(li,idx){
-          var bullet=ordered?(idx+1)+'. ':'• ';
-          drawTextBlock(bullet+li.textContent.trim(),{font:fReg,fontSize:10,indent:14,spaceAfter:3});
-        });
-        curY-=5;
-        return;
-      }
-
-      // Horizontal rule
-      if(tag==='hr'){drawRule();return;}
-
-      // Blockquote
-      if(tag==='blockquote'){
-        var bqText=(node.textContent||'').trim();
-        if(bqText){
-          ensureSpace(18);
-          page.drawLine({start:{x:ML+4,y:curY},end:{x:ML+4,y:curY-20},thickness:2,color:PDFLib.rgb(0.7,0.7,0.7)});
-          drawTextBlock(bqText,{font:fItal,fontSize:10,indent:12,color:PDFLib.rgb(0.3,0.3,0.3),spaceAfter:8});
-        }
-        return;
-      }
-
-      // Div / section — recurse children
-      if(tag==='div'||tag==='section'||tag==='article'||tag==='main'||tag==='body'){
-        Array.from(node.childNodes).forEach(function(child){
-          if(child.nodeType===1)traverseNode(child);
-          else if(child.nodeType===3){
-            var txt=(child.textContent||'').trim();
-            if(txt)drawTextBlock(txt,{font:fReg,fontSize:10,spaceAfter:4});
-          }
-        });
-        return;
-      }
-
-      // Fallback: text content
-      var txt=(node.textContent||'').trim();
-      if(txt)drawTextBlock(txt,{font:fReg,fontSize:10,spaceAfter:4});
-    }
-
-    Array.from(root.childNodes).forEach(function(child){
-      if(child.nodeType===1)traverseNode(child);
-      else if(child.nodeType===3){
-        var txt=(child.textContent||'').trim();
-        if(txt)drawTextBlock(txt,{font:fReg,fontSize:10,spaceAfter:4});
-      }
-    });
-
-    // Add page numbers if requested
-    if(addPageNums){
-      var totalPgs=pdfDoc.getPageCount();
-      for(var pi=0;pi<totalPgs;pi++){
-        var pg2=pdfDoc.getPage(pi);
-        var sz=pg2.getSize();
-        var pnTxt='Page '+(pi+1)+' of '+totalPgs;
-        var pnW=fReg.widthOfTextAtSize(pnTxt,8);
-        pg2.drawText(pnTxt,{x:(sz.width-pnW)/2,y:16,size:8,font:fReg,color:PDFLib.rgb(0.5,0.5,0.5)});
-      }
-    }
-
-    showProg('word-to-pdf','Saving PDF...',90);
-    var outBytes=await pdfDoc.save();
-    showProg('word-to-pdf','Done!',100);
-
-    var numP=pdfDoc.getPageCount();
-    var blob=new Blob([outBytes],{type:'application/pdf'});
-    var outName=_wordFile.name.replace(/\.docx$/i,'')+'.pdf';
-    showResult('word-to-pdf',numP+' pages — '+(outBytes.length/1024/1024).toFixed(2)+' MB',[blob],[outName]);
-    showToast('Word to PDF complete! ✅','success');
-
-  }catch(e){
-    hideProg('word-to-pdf');
-    showToast('Failed: '+e.message,'error');
-    console.error(e);
-  }
-  if(btn){btn.disabled=false;btn.textContent='📄 Convert to PDF';}
+  if (btn) { btn.disabled = false; btn.textContent = '📄 Convert to PDF'; }
 }
 
 // =====================================================================
