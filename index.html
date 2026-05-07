@@ -2372,69 +2372,44 @@ function _hexRgb(hex){
 }
 
 // Main converter
-async function convertWordToPDF(){
-  if(!_wordFile){showToast('Pehle DOCX file select karein','error');return;}
-  if(typeof mammoth==='undefined'){showToast('mammoth.js load nahi hua, refresh karein','error');return;}
+async function convertWordToPDF() {
+  if (!wordFileData) return;
 
-  var btn=document.getElementById('wordConvertBtn');
-  if(btn){btn.disabled=true;btn.textContent='Converting...';}
-  showProg('word-to-pdf','Reading DOCX file...',5);
+  // Progress show karo
+  setProgress('word-to-pdf', 30, 'Uploading file...');
 
-  try{
-    var buf=await _wordFile.arrayBuffer();
-    showProg('word-to-pdf','Parsing document...',15);
+  const formData = new FormData();
+  formData.append('file', wordFileData);
 
-    // mammoth → HTML
-    var mmResult=await mammoth.convertToHtml({arrayBuffer:buf},{
-      convertImage:mammoth.images.imgElement(function(image){
-        return image.read('base64').then(function(b64){
-          return{src:'data:'+image.contentType+';base64,'+b64};
-        });
-      })
+  try {
+    setProgress('word-to-pdf', 60, 'LibreOffice se convert ho raha hai...');
+
+    const response = await fetch('https://pdf-pro-server.onrender.com/convert/word-to-pdf', {
+      method: 'POST',
+      body: formData
     });
-    var htmlStr=mmResult.value;
 
-    // Parse into DOM
-    var parser=new DOMParser();
-    var dom=parser.parseFromString('<div id="root">'+htmlStr+'</div>','text/html');
-    var root=dom.getElementById('root');
-
-    showProg('word-to-pdf','Setting up PDF...',25);
-
-    // Page settings
-    var pageSize=document.getElementById('wordPageSize').value;
-    var addPageNums=document.getElementById('wordAddPageNums').checked;
-    var pageSizes={
-      A4:{w:595,h:842},
-      Letter:{w:612,h:792},
-      A3:{w:842,h:1191}
-    };
-    var ps=pageSizes[pageSize]||pageSizes.A4;
-    var ML=45, MR=45, MT=45, MB=45;
-    var CW=ps.w-ML-MR; // content width
-
-    // Create PDF
-    var pdfDoc=await PDFLib.PDFDocument.create();
-    var fReg=await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
-    var fBold=await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
-    var fItal=await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaOblique);
-    var fBoldItal=await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBoldOblique);
-
-    var page=null;
-    var curY=0;
-    var pageIdx=0;
-
-    function newPage(){
-      page=pdfDoc.addPage([ps.w,ps.h]);
-      page.drawRectangle({x:0,y:0,width:ps.w,height:ps.h,color:PDFLib.rgb(1,1,1)});
-      curY=ps.h-MT;
-      pageIdx++;
-    }
-    function ensureSpace(needed){
-      if(!page||curY-needed<MB){newPage();}
+    if (!response.ok) {
+      throw new Error('Server error');
     }
 
-    newPage();
+    setProgress('word-to-pdf', 90, 'PDF ready ho raha hai...');
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+
+    setProgress('word-to-pdf', 100, 'Done!');
+
+    // Download
+    dlBlob(blob, wordFileData.name.replace(/\.docx?$/i, '') + '.pdf');
+    showResult('word-to-pdf', `${wordFileData.name} successfully converted!`);
+    showToast('PDF ready!', 'success');
+
+  } catch (err) {
+    showToast('Conversion failed! Server check karo.', 'error');
+    console.error(err);
+  }
+}
 
     // ---- BLOCK RENDERERS ----
 
