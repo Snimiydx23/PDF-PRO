@@ -672,37 +672,25 @@ table.scan-tbl tr:nth-child(even) td{background:var(--opt-bg);}
   </div>
 
   <div class="tool-panel" id="panel-ppt-to-pdf">
-    <div class="panel-header blue"><h2>📊 Slides/Images to PDF</h2><p>Slide images ko PDF mein combine karein</p></div>
+    <div class="panel-header blue"><h2>📊 PowerPoint to PDF</h2><p>PPTX files ko PDF mein convert karein — LibreOffice se!</p></div>
     <div class="panel-body">
-      <div class="info-box" style="margin-bottom:12px;">
-        💡 <strong>PPTX → PDF:</strong> PowerPoint mein <strong>File → Export → PNG images</strong> save karein, phir neeche images upload karein → PDF ban jayega!<br>
-        <strong>Ya:</strong> Google Slides → File → Download → PDF (direct!)
-      </div>
       <div class="drop-zone" id="pptDropZone" ondragover="handleDragOver(event,'pptDropZone')" ondragleave="handleDragLeave(event,'pptDropZone')" ondrop="handlePptDrop(event)">
-        <span class="dz-icon">🖼️</span><h3>Drop Slide Images here</h3>
-        <p>PNG/JPG images drop karein (multiple select kar sakte hain)</p>
-        <button class="btn-select blue" onclick="document.getElementById('pptImgInput').click()">🖼️ Select Slide Images</button>
-        <input type="file" id="pptImgInput" multiple accept=".png,.jpg,.jpeg" onchange="loadPptImages(event)">
+        <span class="dz-icon">📊</span><h3>Drop PPTX file here</h3>
+        <p>PowerPoint (.pptx) file yahan drop karein</p>
+        <button class="btn-select blue" onclick="document.getElementById('pptFileInput').click()">📁 Select PPTX File</button>
+        <input type="file" id="pptFileInput" accept=".pptx,.ppt" onchange="loadPptFile(event)">
       </div>
-      <div id="pptImgList" class="file-list" style="margin-top:8px;"></div>
-      <div id="pptOptions" class="options-panel" style="display:none;margin-top:10px;">
-        <div class="options-title">⚙️ Slide Settings</div>
-        <div class="options-grid">
-          <label class="opt-item"><input type="checkbox" id="pptAddPageNums"> Add Page Numbers</label>
-          <label class="opt-item"><input type="checkbox" id="pptKeepAspect" checked> Keep Aspect Ratio</label>
-        </div>
-        <div style="margin-top:8px;">
-          <label style="font-size:12px;font-weight:600;color:var(--muted);">SLIDE SIZE</label>
-          <select class="opt-select" id="pptSlideSize" style="margin-top:4px;">
-            <option value="widescreen">Widescreen 16:9</option>
-            <option value="standard">Standard 4:3</option>
-            <option value="a4">A4 Portrait</option>
-          </select>
+      <div id="pptFileInfo" style="display:none;margin-top:10px;" class="options-panel">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:24px;">📊</span>
+          <div><div id="pptFileName" style="font-weight:700;font-size:13px;"></div>
+          <div id="pptFileSize" style="font-size:11px;color:var(--muted);"></div></div>
+          <button class="btn-icon" onclick="clearPptFile()" style="margin-left:auto;">✕</button>
         </div>
       </div>
       <div class="action-row">
-        <button class="btn-clear" onclick="clearPptImages()">🗑 Clear</button>
-        <button class="btn-main blue" id="pptConvertBtn" onclick="convertPptToPDF()" disabled>📄 Build PDF</button>
+        <button class="btn-clear" onclick="clearPptFile()">🗑 Clear</button>
+        <button class="btn-main blue" id="pptConvertBtn" onclick="convertPptToPDF()" disabled>📄 Convert to PDF</button>
       </div>
       <div class="progress-wrap" id="ppt-to-pdfProgress">
         <div class="progress-status" id="ppt-to-pdfProgressStatus"></div>
@@ -2451,176 +2439,77 @@ function clearExcelFile(){
   var rb=document.getElementById('excel-to-pdfResult');if(rb)rb.classList.remove('visible');
 }
 async function convertExcelToPDF(){
-  if(!_excelWorkbook){showToast('Pehle Excel file select karein','error');return;}
+  if(!_excelFile){showToast('Pehle Excel file select karein','error');return;}
   var btn=document.getElementById('excelConvertBtn');if(btn){btn.disabled=true;btn.textContent='Converting...';}
-  showProg('excel-to-pdf','Reading Excel data...',10);
+  showProg('excel-to-pdf','Uploading file...',30);
+  var formData=new FormData();
+  formData.append('file',_excelFile);
   try{
-    var sheetName=document.getElementById('excelSheetName')?.value||_excelWorkbook.SheetNames[0];
-    var ws=_excelWorkbook.Sheets[sheetName];
-    var data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-    if(!data||!data.length){showToast('Sheet mein data nahi mila','error');hideProg('excel-to-pdf');if(btn){btn.disabled=false;btn.textContent='📄 Convert to PDF';}return;}
-
-    var fitPage=document.getElementById('excelFitPage').checked;
-    var headerBold=document.getElementById('excelHeaderBold').checked;
-    var altRows=document.getElementById('excelAlternateRows').checked;
-    var addTitle=document.getElementById('excelAddTitle').checked;
-    var orientation=document.getElementById('excelOrientation').value;
-
-    showProg('excel-to-pdf','Building PDF table...',35);
-    var isLand=orientation==='landscape';
-    var pw=isLand?842:595;var ph=isLand?595:842;
-    var margin=30;var usableW=pw-margin*2;
-
-    var pdfDoc=await PDFLib.PDFDocument.create();
-    var font=await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
-    var fontBold=await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
-
-    // Calculate column widths
-    var numCols=data[0].length;
-    var colW=Math.floor(usableW/Math.max(numCols,1));
-    var maxColW=Math.min(colW,120);
-    var fontSize=fitPage?Math.min(9,Math.floor(usableW/numCols/6)):9;
-    fontSize=Math.max(6,Math.min(fontSize,10));
-    var rowH=fontSize+6;
-    var headerH=rowH+2;
-
-    var rowsPerPage=Math.floor((ph-margin*2-(addTitle?24:0)-headerH)/rowH);
-    var totalDataRows=data.length-1;
-    var totalPages=Math.max(1,Math.ceil(totalDataRows/rowsPerPage));
-
-    showProg('excel-to-pdf','Creating pages...',50);
-
-    for(var pg=0;pg<totalPages;pg++){
-      showProg('excel-to-pdf','Page '+(pg+1)+'/'+totalPages,50+Math.round(pg/totalPages*40));
-      var page=pdfDoc.addPage([pw,ph]);
-      page.drawRectangle({x:0,y:0,width:pw,height:ph,color:PDFLib.rgb(1,1,1)});
-      var yPos=ph-margin;
-
-      // Title
-      if(addTitle&&pg===0){
-        var title=safeText((_excelFile.name+' — '+sheetName).substring(0,60));
-        page.drawText(title,{x:margin,y:yPos-12,size:11,font:fontBold,color:PDFLib.rgb(0.1,0.1,0.1)});
-        yPos-=24;
-      }
-
-      // Draw header row
-      var headers=data[0]||[];
-      page.drawRectangle({x:margin,y:yPos-headerH,width:usableW,height:headerH,color:PDFLib.rgb(0.2,0.2,0.2)});
-      headers.forEach(function(h,ci){
-        var x=margin+ci*maxColW;
-        var txt=safeText(String(h||'').substring(0,18));
-        try{page.drawText(txt,{x:x+3,y:yPos-headerH+4,size:fontSize,font:fontBold,color:PDFLib.rgb(1,1,1)});}catch(ex){}
-      });
-      yPos-=headerH;
-
-      // Draw data rows
-      var startRow=1+pg*rowsPerPage;
-      var endRow=Math.min(data.length,startRow+rowsPerPage);
-      for(var ri=startRow;ri<endRow;ri++){
-        var row=data[ri]||[];
-        var isAlt=altRows&&(ri%2===0);
-        if(isAlt)page.drawRectangle({x:margin,y:yPos-rowH,width:usableW,height:rowH,color:PDFLib.rgb(0.96,0.96,0.98)});
-        // Row border
-        page.drawLine({start:{x:margin,y:yPos-rowH},end:{x:margin+usableW,y:yPos-rowH},thickness:0.3,color:PDFLib.rgb(0.8,0.8,0.8)});
-        row.forEach(function(cell,ci){
-          var x=margin+ci*maxColW;
-          var txt=safeText(String(cell||'').substring(0,18));
-          try{page.drawText(txt,{x:x+3,y:yPos-rowH+4,size:fontSize,font:font,color:PDFLib.rgb(0.1,0.1,0.1)});}catch(ex){}
-        });
-        // Vertical separators
-        for(var ci2=0;ci2<=Math.min(numCols,Math.floor(usableW/maxColW));ci2++){
-          page.drawLine({start:{x:margin+ci2*maxColW,y:yPos},end:{x:margin+ci2*maxColW,y:yPos-rowH},thickness:0.3,color:PDFLib.rgb(0.8,0.8,0.8)});
-        }
-        yPos-=rowH;
-      }
-      // Outer border
-      page.drawRectangle({x:margin,y:yPos,width:usableW,height:ph-margin-yPos-margin,borderColor:PDFLib.rgb(0.5,0.5,0.5),borderWidth:0.8,color:PDFLib.rgb(1,1,1,0)});
-      // Page number
-      var pnT='Page '+(pg+1)+' / '+totalPages+' — Sheet: '+safeText(sheetName.substring(0,20));
-      page.drawText(pnT,{x:margin,y:15,size:7,font:font,color:PDFLib.rgb(0.5,0.5,0.5)});
-    }
-
-    showProg('excel-to-pdf','Saving...',94);
-    var bytes=await pdfDoc.save();showProg('excel-to-pdf','Done!',100);
-    var blob=new Blob([bytes],{type:'application/pdf'});
-    var outName=_excelFile.name.replace(/\.xlsx?$/,'')+'.pdf';
-    showResult('excel-to-pdf',totalDataRows+' rows, '+numCols+' cols — '+totalPages+' pages',[blob],[outName]);
-    showToast('Excel to PDF complete! ✅','success');
-  }catch(e){hideProg('excel-to-pdf');showToast('Failed: '+e.message,'error');console.error(e);}
+    showProg('excel-to-pdf','LibreOffice se convert ho raha hai...',60);
+    var response=await fetch('https://pdf-pro-server.onrender.com/convert/excel-to-pdf',{method:'POST',body:formData});
+    if(!response.ok){var err=await response.text();throw new Error('Server error: '+err);}
+    showProg('excel-to-pdf','PDF ready...',90);
+    var blob=await response.blob();
+    var outName=_excelFile.name.replace(/\.(xlsx?|csv)$/i,'')+'.pdf';
+    showProg('excel-to-pdf','Done!',100);
+    showResult('excel-to-pdf',_excelFile.name+' successfully converted!',[blob],[outName]);
+    showToast('PDF ready! ✅','success');
+  }catch(err){
+    hideProg('excel-to-pdf');
+    showToast('Conversion failed: '+err.message,'error');
+    console.error(err);
+  }
   if(btn){btn.disabled=false;btn.textContent='📄 Convert to PDF';}
 }
 
 // =====================================================================
-// PPT IMAGES TO PDF
+// PPT TO PDF (LibreOffice)
 // =====================================================================
-var _pptImages=[];
-function handlePptDrop(e){e.preventDefault();var files=Array.from(e.dataTransfer.files).filter(function(f){return f.type.startsWith('image/');});if(files.length)addPptImages(files);else showToast('Image files drop karein','error');}
-function loadPptImages(e){var files=Array.from(e.target.files);if(files.length)addPptImages(files);e.target.value='';}
-function addPptImages(files){
-  files.forEach(function(f){_pptImages.push(f);});
-  renderPptList();
-  var btn=document.getElementById('pptConvertBtn');if(btn)btn.disabled=!_pptImages.length;
-  var po=document.getElementById('pptOptions');if(po)po.style.display='block';
+var _pptFile = null;
+function handlePptDrop(e){
+  e.preventDefault();
+  var f=e.dataTransfer.files[0];
+  if(f&&(f.name.endsWith('.pptx')||f.name.endsWith('.ppt')))setPptFile(f);
+  else showToast('Sirf .pptx file supported hai','error');
 }
-function clearPptImages(){
-  _pptImages=[];renderPptList();
+function loadPptFile(e){var f=e.target.files[0];if(f)setPptFile(f);e.target.value='';}
+function setPptFile(f){
+  _pptFile=f;
+  var fi=document.getElementById('pptFileInfo');if(fi)fi.style.display='block';
+  var fn=document.getElementById('pptFileName');if(fn)fn.textContent=f.name;
+  var fs=document.getElementById('pptFileSize');if(fs)fs.textContent=(f.size/1024/1024).toFixed(2)+' MB';
+  var btn=document.getElementById('pptConvertBtn');if(btn)btn.disabled=false;
+}
+function clearPptFile(){
+  _pptFile=null;
+  var fi=document.getElementById('pptFileInfo');if(fi)fi.style.display='none';
   var btn=document.getElementById('pptConvertBtn');if(btn)btn.disabled=true;
-  var po=document.getElementById('pptOptions');if(po)po.style.display='none';
+  var inp=document.getElementById('pptFileInput');if(inp)inp.value='';
   var rb=document.getElementById('ppt-to-pdfResult');if(rb)rb.classList.remove('visible');
 }
-function renderPptList(){
-  var list=document.getElementById('pptImgList');if(!list)return;
-  if(!_pptImages.length){list.innerHTML='';return;}
-  list.innerHTML=_pptImages.map(function(f,i){
-    return '<div class="file-item newly-added"><span style="font-size:18px;">🖼️</span>'+
-      '<div class="file-info"><div class="file-name">'+escH(f.name)+'</div>'+
-      '<div class="file-meta">Slide '+(i+1)+' — '+(f.size/1024).toFixed(0)+' KB</div></div>'+
-      '<div class="file-actions"><button class="btn-icon" onclick="removePptImage('+i+')">✕</button></div></div>';
-  }).join('');
-}
-function removePptImage(i){_pptImages.splice(i,1);renderPptList();var btn=document.getElementById('pptConvertBtn');if(btn)btn.disabled=!_pptImages.length;}
 async function convertPptToPDF(){
-  if(!_pptImages.length){showToast('Pehle slide images add karein','error');return;}
-  var btn=document.getElementById('pptConvertBtn');if(btn){btn.disabled=true;btn.textContent='Building...';}
-  showProg('ppt-to-pdf','Building PDF...',5);
+  if(!_pptFile)return;
+  var btn=document.getElementById('pptConvertBtn');if(btn){btn.disabled=true;btn.textContent='Converting...';}
+  showProg('ppt-to-pdf','Uploading file...',30);
+  var formData=new FormData();
+  formData.append('file',_pptFile);
   try{
-    var slideSize=document.getElementById('pptSlideSize').value;
-    var addPN=document.getElementById('pptAddPageNums').checked;
-    var keepAR=document.getElementById('pptKeepAspect').checked;
-    var sizes={widescreen:{w:960,h:540},standard:{w:800,h:600},a4:{w:595,h:842}};
-    var ss=sizes[slideSize]||sizes.widescreen;
-    var pdfDoc=await PDFLib.PDFDocument.create();
-    var font=await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
-
-    for(var i=0;i<_pptImages.length;i++){
-      showProg('ppt-to-pdf','Slide '+(i+1)+'/'+_pptImages.length,10+Math.round(i/_pptImages.length*85));
-      var imgFile=_pptImages[i];
-      var buf=await imgFile.arrayBuffer();
-      var imgBytes=new Uint8Array(buf);
-      var embImg;
-      try{
-        if(imgFile.type==='image/png')embImg=await pdfDoc.embedPng(imgBytes);
-        else embImg=await pdfDoc.embedJpg(imgBytes);
-      }catch(ex){showToast('Slide '+(i+1)+' skip (unsupported format)','error');continue;}
-      var iDims=embImg.size();
-      var pw=ss.w,ph=ss.h;
-      var page=pdfDoc.addPage([pw,ph]);
-      page.drawRectangle({x:0,y:0,width:pw,height:ph,color:PDFLib.rgb(0,0,0)});
-      var iw=pw,ih=ph;
-      if(keepAR){var ratio=Math.min(pw/iDims.width,ph/iDims.height);iw=iDims.width*ratio;ih=iDims.height*ratio;}
-      page.drawImage(embImg,{x:(pw-iw)/2,y:(ph-ih)/2,width:iw,height:ih});
-      if(addPN){var pt='Slide '+(i+1)+' / '+_pptImages.length;page.drawText(pt,{x:pw/2-font.widthOfTextAtSize(pt,8)/2,y:8,size:8,font:font,color:PDFLib.rgb(0.8,0.8,0.8)});}
-    }
-    showProg('ppt-to-pdf','Saving...',97);
-    var bytes=await pdfDoc.save();showProg('ppt-to-pdf','Done!',100);
-    var blob=new Blob([bytes],{type:'application/pdf'});
-    var outName='Slides_PDF.pdf';
-    showResult('ppt-to-pdf',_pptImages.length+' slides — '+(bytes.length/1024/1024).toFixed(2)+' MB',[blob],[outName]);
-    showToast('Slides PDF ready! ✅','success');
-  }catch(e){hideProg('ppt-to-pdf');showToast('Failed: '+e.message,'error');console.error(e);}
-  if(btn){btn.disabled=false;btn.textContent='📄 Build PDF';}
+    showProg('ppt-to-pdf','LibreOffice se convert ho raha hai...',60);
+    var response=await fetch('https://pdf-pro-server.onrender.com/convert/ppt-to-pdf',{method:'POST',body:formData});
+    if(!response.ok){var err=await response.text();throw new Error('Server error: '+err);}
+    showProg('ppt-to-pdf','PDF ready...',90);
+    var blob=await response.blob();
+    var outName=_pptFile.name.replace(/\.pptx?$/i,'')+'.pdf';
+    showProg('ppt-to-pdf','Done!',100);
+    showResult('ppt-to-pdf',_pptFile.name+' successfully converted!',[blob],[outName]);
+    showToast('PDF ready! ✅','success');
+  }catch(err){
+    hideProg('ppt-to-pdf');
+    showToast('Conversion failed: '+err.message,'error');
+    console.error(err);
+  }
+  if(btn){btn.disabled=false;btn.textContent='📄 Convert to PDF';}
 }
-
 
 // =====================================================================
 // SCANNER FUNCTIONS
