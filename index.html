@@ -827,48 +827,60 @@ table.scan-tbl tr:nth-child(even) td{background:var(--opt-bg);}
     </div>
   </div>
 
-  <!-- PDF TO WORD / PPT / EXCEL — info panels -->
+  <!-- PDF TO WORD -->
   <div class="tool-panel" id="panel-pdf-to-word">
-    <div class="panel-header purple"><h2>📝 PDF to Word</h2><p>PDF ko editable Word document mein convert karein</p></div>
+    <div class="panel-header purple"><h2>📝 PDF to Word</h2><p>PDF ko editable .docx Word document mein convert karein</p></div>
     <div class="panel-body">
-      <div class="info-box">
-        ℹ️ <strong>Browser Limitation:</strong> PDF to Word conversion ke liye complex server-side processing chahiye jo browser mein possible nahi hai.<br><br>
-        <strong>Best Free Options:</strong><br>
-        1. <strong>Microsoft Word</strong> → Open → PDF file select karein (auto convert)<br>
-        2. <a href="https://smallpdf.com/pdf-to-word" target="_blank" style="color:#7c3aed;">smallpdf.com</a><br>
-        3. <a href="https://www.ilovepdf.com/pdf_to_word" target="_blank" style="color:#7c3aed;">ilovepdf.com</a><br>
-        4. Google Drive → Upload PDF → Right click → Open with Google Docs
+      <div class="drop-zone" id="pdfToWordDropZone" ondragover="handleDragOver(event,'pdfToWordDropZone')" ondragleave="handleDragLeave(event,'pdfToWordDropZone')" ondrop="handleFileDrop(event,'pdf-to-word')">
+        <span class="dz-icon">📁</span><h3>Drop a PDF file here</h3><p>PDF file yahan drop karein ya select karein</p>
+        <button class="btn-select purple" onclick="document.getElementById('pdfToWordInput').click()">Select PDF File</button>
+        <input type="file" id="pdfToWordInput" accept=".pdf" onchange="addSingleFile(event,'pdf-to-word')">
       </div>
-      <div class="info-box" style="margin-top:10px;">
-        💡 <strong>Alt:</strong> PDF ka text aap <strong>AI Summarizer</strong> tool se extract kar sakte hain!
-        <br><button class="btn-sm purple" style="margin-top:8px;" onclick="switchCat('intelligence',null);openToolInSec('ai-summarizer',null,'intelligence')">🤖 AI Tool Open Karein</button>
+      <div id="pdf-to-wordFileList" class="file-list"></div>
+      <div class="action-row">
+        <button class="btn-clear" onclick="clearSingleTool('pdf-to-word')">🗑 Clear</button>
+        <button class="btn-main purple" id="pdfToWordBtn" onclick="convertPDFtoWord()" disabled>📝 Convert to Word</button>
       </div>
+      <div class="progress-wrap" id="pdf-to-wordProgress"><div class="progress-status" id="pdf-to-wordProgressStatus"></div><div class="progress-bar-bg"><div class="progress-bar-fill purple" id="pdf-to-wordProgressFill"></div></div></div>
+      <div class="result-box" id="pdf-to-wordResult"><h4>✅ Word File Ready!</h4><p id="pdf-to-wordResultInfo"></p><div id="pdf-to-wordDownloadBtns"></div></div>
     </div>
   </div>
 
+  <!-- PDF TO PPT -->
   <div class="tool-panel" id="panel-pdf-to-ppt">
-    <div class="panel-header purple"><h2>📊 PDF to PowerPoint</h2><p>PDF pages ko PPT slides mein convert karein</p></div>
+    <div class="panel-header purple"><h2>📊 PDF to PowerPoint</h2><p>PDF pages ko .pptx slides mein convert karein</p></div>
     <div class="panel-body">
-      <div class="info-box">
-        ℹ️ <strong>Browser Limitation:</strong> PDF to PPT conversion server-side tool chahiye.<br><br>
-        <strong>Best Options:</strong><br>
-        1. <a href="https://www.ilovepdf.com/pdf_to_powerpoint" target="_blank" style="color:#7c3aed;">ilovepdf.com</a><br>
-        2. Adobe Acrobat (paid)<br>
-        3. <a href="https://smallpdf.com/pdf-to-ppt" target="_blank" style="color:#7c3aed;">smallpdf.com</a>
+      <div class="drop-zone" id="pdfToPptDropZone" ondragover="handleDragOver(event,'pdfToPptDropZone')" ondragleave="handleDragLeave(event,'pdfToPptDropZone')" ondrop="handleFileDrop(event,'pdf-to-ppt')">
+        <span class="dz-icon">📁</span><h3>Drop a PDF file here</h3><p>Har PDF page ek slide banega</p>
+        <button class="btn-select purple" onclick="document.getElementById('pdfToPptInput').click()">Select PDF File</button>
+        <input type="file" id="pdfToPptInput" accept=".pdf" onchange="addSingleFile(event,'pdf-to-ppt')">
       </div>
+      <div id="pdf-to-pptFileList" class="file-list"></div>
+      <div class="action-row">
+        <button class="btn-clear" onclick="clearSingleTool('pdf-to-ppt')">🗑 Clear</button>
+        <button class="btn-main purple" id="pdfToPptBtn" onclick="convertPDFtoPPT()" disabled>📊 Convert to PPT</button>
+      </div>
+      <div class="progress-wrap" id="pdf-to-pptProgress"><div class="progress-status" id="pdf-to-pptProgressStatus"></div><div class="progress-bar-bg"><div class="progress-bar-fill purple" id="pdf-to-pptProgressFill"></div></div></div>
+      <div class="result-box" id="pdf-to-pptResult"><h4>✅ PowerPoint Ready!</h4><p id="pdf-to-pptResultInfo"></p><div id="pdf-to-pptDownloadBtns"></div></div>
     </div>
   </div>
 
+  <!-- PDF TO EXCEL -->
   <div class="tool-panel" id="panel-pdf-to-excel">
-    <div class="panel-header purple"><h2>📈 PDF to Excel</h2><p>PDF tables ko editable Excel mein convert karein</p></div>
+    <div class="panel-header purple"><h2>📈 PDF to Excel</h2><p>PDF tables ko editable .xlsx Excel mein convert karein</p></div>
     <div class="panel-body">
-      <div class="info-box">
-        ℹ️ <strong>Browser Limitation:</strong> PDF table extraction ke liye server-side processing chahiye.<br><br>
-        <strong>Best Options:</strong><br>
-        1. <a href="https://www.ilovepdf.com/pdf_to_excel" target="_blank" style="color:#7c3aed;">ilovepdf.com</a><br>
-        2. Adobe Acrobat (paid)<br>
-        3. <a href="https://smallpdf.com/pdf-to-excel" target="_blank" style="color:#7c3aed;">smallpdf.com</a>
+      <div class="drop-zone" id="pdfToExcelDropZone" ondragover="handleDragOver(event,'pdfToExcelDropZone')" ondragleave="handleDragLeave(event,'pdfToExcelDropZone')" ondrop="handleFileDrop(event,'pdf-to-excel')">
+        <span class="dz-icon">📁</span><h3>Drop a PDF file here</h3><p>PDF ke tables extract hokar Excel mein jayenge</p>
+        <button class="btn-select purple" onclick="document.getElementById('pdfToExcelInput').click()">Select PDF File</button>
+        <input type="file" id="pdfToExcelInput" accept=".pdf" onchange="addSingleFile(event,'pdf-to-excel')">
       </div>
+      <div id="pdf-to-excelFileList" class="file-list"></div>
+      <div class="action-row">
+        <button class="btn-clear" onclick="clearSingleTool('pdf-to-excel')">🗑 Clear</button>
+        <button class="btn-main purple" id="pdfToExcelBtn" onclick="convertPDFtoExcel()" disabled>📈 Convert to Excel</button>
+      </div>
+      <div class="progress-wrap" id="pdf-to-excelProgress"><div class="progress-status" id="pdf-to-excelProgressStatus"></div><div class="progress-bar-bg"><div class="progress-bar-fill purple" id="pdf-to-excelProgressFill"></div></div></div>
+      <div class="result-box" id="pdf-to-excelResult"><h4>✅ Excel File Ready!</h4><p id="pdf-to-excelResultInfo"></p><div id="pdf-to-excelDownloadBtns"></div></div>
     </div>
   </div>
 
@@ -1615,7 +1627,7 @@ function handleDragOver(e,zid){e.preventDefault();var el=document.getElementById
 function handleDragLeave(e,zid){var el=document.getElementById(zid);if(el)el.classList.remove('dragover');}
 function handleFileDrop(e,tool){
   e.preventDefault();
-  var allDZ=['mergeDropZone','sizeDropZone','pagesDropZone','singleDropZone','compressDropZone','clientDropZone','pdfToJpgDropZone','pdfaDropZone','rotateDropZone','pnDropZone','wmDropZone','cropDropZone','metaDropZone','unlockDropZone','protectDropZone','signDropZone','redactDropZone','aiDropZone','transDropZone'];
+  var allDZ=['mergeDropZone','sizeDropZone','pagesDropZone','singleDropZone','compressDropZone','clientDropZone','pdfToJpgDropZone','pdfaDropZone','rotateDropZone','pnDropZone','wmDropZone','cropDropZone','metaDropZone','unlockDropZone','protectDropZone','signDropZone','redactDropZone','aiDropZone','transDropZone','pdfToWordDropZone','pdfToPptDropZone','pdfToExcelDropZone'];
   allDZ.forEach(function(id){var el=document.getElementById(id);if(el)el.classList.remove('dragover');});
   var files=Array.from(e.dataTransfer.files).filter(function(f){return f.name.toLowerCase().endsWith('.pdf');});
   if(!files.length){showToast('PDF files drop karein','error');return;}
@@ -1797,7 +1809,7 @@ async function setSingleFile(tool,file){
     setThumbInItem(thumbId,file);
   }
   // enable buttons
-  var btnIds={'split-size':'sizeSplitBtn','split-pages':'pagesSplitBtn','split-single':'singleSplitBtn','compress':'compressBtn','pdf-to-jpg':'pdfToJpgBtn','rotate-pdf':'rotateBtn','add-page-numbers':'pnBtn','add-watermark':'wmBtn','crop-pdf':'cropBtn','edit-pdf':'metaBtn','unlock-pdf':'unlockBtn','protect-pdf':'protectBtn','sign-pdf':'signBtn','redact-pdf':'redactBtn','ai-summarizer':'aiBtn','translate-pdf':'transBtn','pdf-to-pdfa':'pdfaBtn'};
+  var btnIds={'split-size':'sizeSplitBtn','split-pages':'pagesSplitBtn','split-single':'singleSplitBtn','compress':'compressBtn','pdf-to-jpg':'pdfToJpgBtn','rotate-pdf':'rotateBtn','add-page-numbers':'pnBtn','add-watermark':'wmBtn','crop-pdf':'cropBtn','edit-pdf':'metaBtn','unlock-pdf':'unlockBtn','protect-pdf':'protectBtn','sign-pdf':'signBtn','redact-pdf':'redactBtn','ai-summarizer':'aiBtn','translate-pdf':'transBtn','pdf-to-pdfa':'pdfaBtn','pdf-to-word':'pdfToWordBtn','pdf-to-ppt':'pdfToPptBtn','pdf-to-excel':'pdfToExcelBtn'};
   if(btnIds[tool]){var bb=document.getElementById(btnIds[tool]);if(bb)bb.disabled=false;}
   // show options panels
   var optMap={'split-size':'sizeOptions','compress':'compressOptions','split-client':'clientOptions','pdf-to-jpg':'pdfToJpgOptions','rotate-pdf':'rotateOptions','add-page-numbers':'pnOptions','add-watermark':'wmOptions','crop-pdf':'cropOptions','edit-pdf':'metaOptions','unlock-pdf':'unlockOptions','protect-pdf':'protectOptions','sign-pdf':'signOptions','redact-pdf':'redactOptions','ai-summarizer':'aiOptions','translate-pdf':'transOptions'};
@@ -1807,13 +1819,13 @@ async function setSingleFile(tool,file){
   if(tool==='sign-pdf')initSignCanvas();
   // load metadata for edit-pdf
   if(tool==='edit-pdf'){try{var buf=await file.arrayBuffer();var pdoc=await PDFLib.PDFDocument.load(buf,{ignoreEncryption:true});document.getElementById('metaTitle').value=pdoc.getTitle()||'';document.getElementById('metaAuthor').value=pdoc.getAuthor()||'';document.getElementById('metaSubject').value=pdoc.getSubject()||'';document.getElementById('metaKeywords').value=pdoc.getKeywords()||'';}catch(e){}}
-  var resultIds={'split-size':'size','split-pages':'pages','split-single':'single','compress':'compress','pdf-to-jpg':'pdf-to-jpg','rotate-pdf':'rotate-pdf','add-page-numbers':'add-page-numbers','add-watermark':'add-watermark','crop-pdf':'crop-pdf','edit-pdf':'edit-pdf','unlock-pdf':'unlock-pdf','protect-pdf':'protect-pdf','sign-pdf':'sign-pdf','redact-pdf':'redact-pdf','ai-summarizer':'ai-summarizer','translate-pdf':'translate-pdf','pdf-to-pdfa':'pdf-to-pdfa'};
+  var resultIds={'split-size':'size','split-pages':'pages','split-single':'single','compress':'compress','pdf-to-jpg':'pdf-to-jpg','rotate-pdf':'rotate-pdf','add-page-numbers':'add-page-numbers','add-watermark':'add-watermark','crop-pdf':'crop-pdf','edit-pdf':'edit-pdf','unlock-pdf':'unlock-pdf','protect-pdf':'protect-pdf','sign-pdf':'sign-pdf','redact-pdf':'redact-pdf','ai-summarizer':'ai-summarizer','translate-pdf':'translate-pdf','pdf-to-pdfa':'pdf-to-pdfa','pdf-to-word':'pdf-to-word','pdf-to-ppt':'pdf-to-ppt','pdf-to-excel':'pdf-to-excel'};
   if(resultIds[tool])hideResult(resultIds[tool]);
 }
 function clearSingleTool(tool){
   singleFiles[tool]=null;
   var listId=tool+'FileList';var le=document.getElementById(listId);if(le)le.innerHTML='';
-  var btnIds={'split-size':'sizeSplitBtn','split-pages':'pagesSplitBtn','split-single':'singleSplitBtn','compress':'compressBtn','pdf-to-jpg':'pdfToJpgBtn','rotate-pdf':'rotateBtn','add-page-numbers':'pnBtn','add-watermark':'wmBtn','crop-pdf':'cropBtn','edit-pdf':'metaBtn','unlock-pdf':'unlockBtn','protect-pdf':'protectBtn','sign-pdf':'signBtn','redact-pdf':'redactBtn','ai-summarizer':'aiBtn','translate-pdf':'transBtn','pdf-to-pdfa':'pdfaBtn'};
+  var btnIds={'split-size':'sizeSplitBtn','split-pages':'pagesSplitBtn','split-single':'singleSplitBtn','compress':'compressBtn','pdf-to-jpg':'pdfToJpgBtn','rotate-pdf':'rotateBtn','add-page-numbers':'pnBtn','add-watermark':'wmBtn','crop-pdf':'cropBtn','edit-pdf':'metaBtn','unlock-pdf':'unlockBtn','protect-pdf':'protectBtn','sign-pdf':'signBtn','redact-pdf':'redactBtn','ai-summarizer':'aiBtn','translate-pdf':'transBtn','pdf-to-pdfa':'pdfaBtn','pdf-to-word':'pdfToWordBtn','pdf-to-ppt':'pdfToPptBtn','pdf-to-excel':'pdfToExcelBtn'};
   if(btnIds[tool]){var bb=document.getElementById(btnIds[tool]);if(bb)bb.disabled=true;}
   var optMap={'split-size':'sizeOptions','compress':'compressOptions','split-client':'clientOptions','pdf-to-jpg':'pdfToJpgOptions','rotate-pdf':'rotateOptions','add-page-numbers':'pnOptions','add-watermark':'wmOptions','crop-pdf':'cropOptions','edit-pdf':'metaOptions','unlock-pdf':'unlockOptions','protect-pdf':'protectOptions','sign-pdf':'signOptions','redact-pdf':'redactOptions','ai-summarizer':'aiOptions','translate-pdf':'transOptions'};
   if(optMap[tool]){var op=document.getElementById(optMap[tool]);if(op)op.style.display='none';}
@@ -2395,13 +2407,13 @@ async function convertWordToPDF() {
   var btn = document.getElementById('wordConvertBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Converting...'; }
 
-  showProg('word-to-pdf', 30, 'Uploading file...');
+  showProg('word-to-pdf', 'Uploading file...', 30);
 
   var formData = new FormData();
   formData.append('file', _wordFile);
 
   try {
-    showProg('word-to-pdf', 60, 'LibreOffice se convert ho raha hai...');
+    showProg('word-to-pdf', 'LibreOffice se convert ho raha hai...', 60);
 
     var response = await fetch('https://pdf-pro-server.onrender.com/convert/word-to-pdf', {
       method: 'POST',
@@ -2413,12 +2425,12 @@ async function convertWordToPDF() {
       throw new Error('Server error: ' + errText);
     }
 
-    showProg('word-to-pdf', 90, 'PDF ready ho raha hai...');
+    showProg('word-to-pdf', 'PDF ready ho raha hai...', 90);
 
     var blob = await response.blob();
     var outName = _wordFile.name.replace(/\.docx?$/i, '') + '.pdf';
 
-    showProg('word-to-pdf', 100, 'Done!');
+    showProg('word-to-pdf', 'Done!', 100);
     showResult('word-to-pdf',
       _wordFile.name + ' successfully converted!',
       [blob],
@@ -2477,7 +2489,7 @@ async function convertExcelToPDF(){
   try{
     showProg('excel-to-pdf','LibreOffice se convert ho raha hai...',60);
     var response=await fetch('https://pdf-pro-server.onrender.com/convert/excel-to-pdf',{method:'POST',body:formData});
-    if(!response.ok){var err=await response.text();throw new Error('Server error: '+err);}
+    if(!response.ok){var err2=await response.text();throw new Error('Server error: '+err2);}
     showProg('excel-to-pdf','PDF ready...',90);
     var blob=await response.blob();
     var outName=_excelFile.name.replace(/\.(xlsx?|csv)$/i,'')+'.pdf';
@@ -2994,6 +3006,84 @@ async function generateClientPDFs(){
   }catch(e){showToast('Failed: '+e.message,'error');console.error(e);}
   if(cgp)setTimeout(function(){cgp.classList.remove('visible');},1000);
   if(genBtn){genBtn.disabled=false;genBtn.textContent='📥 Generate PDFs';}
+}
+
+// =====================================================================
+// PDF TO WORD (LibreOffice server)
+// =====================================================================
+async function convertPDFtoWord(){
+  var file=singleFiles['pdf-to-word'];if(!file){showToast('Pehle PDF file select karein','error');return;}
+  var btn=document.getElementById('pdfToWordBtn');if(btn){btn.disabled=true;btn.textContent='Converting...';}
+  showProg('pdf-to-word','Uploading file...',30);
+  var formData=new FormData();formData.append('file',file);
+  try{
+    showProg('pdf-to-word','LibreOffice se convert ho raha hai...',60);
+    var response=await fetch('https://pdf-pro-server.onrender.com/convert/pdf-to-word',{method:'POST',body:formData});
+    if(!response.ok){var errT=await response.text();throw new Error('Server error: '+errT);}
+    showProg('pdf-to-word','Word file ready ho rahi hai...',90);
+    var blob=await response.blob();
+    var outName=file.name.replace(/\.pdf$/i,'')+'.docx';
+    showProg('pdf-to-word','Done!',100);
+    showResult('pdf-to-word',file.name+' successfully converted!',[blob],[outName]);
+    showToast('Word file ready! ✅','success');
+  }catch(err){
+    hideProg('pdf-to-word');
+    showToast('Conversion failed: '+err.message,'error');
+    console.error(err);
+  }
+  if(btn){btn.disabled=false;btn.textContent='📝 Convert to Word';}
+}
+
+// =====================================================================
+// PDF TO PPT (LibreOffice server)
+// =====================================================================
+async function convertPDFtoPPT(){
+  var file=singleFiles['pdf-to-ppt'];if(!file){showToast('Pehle PDF file select karein','error');return;}
+  var btn=document.getElementById('pdfToPptBtn');if(btn){btn.disabled=true;btn.textContent='Converting...';}
+  showProg('pdf-to-ppt','Uploading file...',30);
+  var formData=new FormData();formData.append('file',file);
+  try{
+    showProg('pdf-to-ppt','LibreOffice se convert ho raha hai...',60);
+    var response=await fetch('https://pdf-pro-server.onrender.com/convert/pdf-to-ppt',{method:'POST',body:formData});
+    if(!response.ok){var errT=await response.text();throw new Error('Server error: '+errT);}
+    showProg('pdf-to-ppt','PowerPoint ready ho raha hai...',90);
+    var blob=await response.blob();
+    var outName=file.name.replace(/\.pdf$/i,'')+'.pptx';
+    showProg('pdf-to-ppt','Done!',100);
+    showResult('pdf-to-ppt',file.name+' successfully converted!',[blob],[outName]);
+    showToast('PowerPoint ready! ✅','success');
+  }catch(err){
+    hideProg('pdf-to-ppt');
+    showToast('Conversion failed: '+err.message,'error');
+    console.error(err);
+  }
+  if(btn){btn.disabled=false;btn.textContent='📊 Convert to PPT';}
+}
+
+// =====================================================================
+// PDF TO EXCEL (LibreOffice server)
+// =====================================================================
+async function convertPDFtoExcel(){
+  var file=singleFiles['pdf-to-excel'];if(!file){showToast('Pehle PDF file select karein','error');return;}
+  var btn=document.getElementById('pdfToExcelBtn');if(btn){btn.disabled=true;btn.textContent='Converting...';}
+  showProg('pdf-to-excel','Uploading file...',30);
+  var formData=new FormData();formData.append('file',file);
+  try{
+    showProg('pdf-to-excel','LibreOffice se convert ho raha hai...',60);
+    var response=await fetch('https://pdf-pro-server.onrender.com/convert/pdf-to-excel',{method:'POST',body:formData});
+    if(!response.ok){var errT=await response.text();throw new Error('Server error: '+errT);}
+    showProg('pdf-to-excel','Excel file ready ho rahi hai...',90);
+    var blob=await response.blob();
+    var outName=file.name.replace(/\.pdf$/i,'')+'.xlsx';
+    showProg('pdf-to-excel','Done!',100);
+    showResult('pdf-to-excel',file.name+' successfully converted!',[blob],[outName]);
+    showToast('Excel file ready! ✅','success');
+  }catch(err){
+    hideProg('pdf-to-excel');
+    showToast('Conversion failed: '+err.message,'error');
+    console.error(err);
+  }
+  if(btn){btn.disabled=false;btn.textContent='📈 Convert to Excel';}
 }
 
 // Resolve any queued stub calls now that all functions are defined
